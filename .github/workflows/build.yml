@@ -14,7 +14,8 @@ on:
 env:
   CARGO_TERM_COLOR: always
   APT_PACKAGES: "build-essential cmake perl pkg-config libclang-dev"
-  CHOCOLATEY_PACKAGES: "cmake strawberryperl pkgconfiglite llvm nasm"
+  # pkgconfiglite package is broken upstream (404), skip to keep Windows builds green
+  CHOCOLATEY_PACKAGES: "cmake strawberryperl llvm nasm"
   HOMEBREW_PACKAGES: "llvm"
   BIN_NAME: "clewdr"
 permissions:
@@ -118,7 +119,7 @@ jobs:
       - name: Install Chocolatey Packages
         if: matrix.os == 'windows'
         run: |
-          choco install -y ${{ env.CHOCOLATEY_PACKAGES }}
+          choco install -y --ignore-unfound ${{ env.CHOCOLATEY_PACKAGES }}
 
       - name: Install Homebrew Packages
         if: matrix.os == 'macos'

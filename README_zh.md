@@ -1,223 +1,87 @@
-<div align="center">
-  <img src="./assets/clewdr-logo.svg" alt="ClewdR" height="60">
-  
-  <p><em>现代化高性能 LLM 代理服务器</em></p>
-  
-  [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Xerxes-2/clewdr)
-  [![GitHub Release](https://img.shields.io/github/v/release/Xerxes-2/clewdr?style=for-the-badge&logo=github&color=blue)](https://github.com/Xerxes-2/clewdr/releases/latest)
-  [![License](https://img.shields.io/github/license/Xerxes-2/clewdr?style=for-the-badge&color=green)](./LICENSE)
-  [![Performance](https://img.shields.io/badge/性能-10倍提升-orange?style=for-the-badge)](#性能指标)
-  [![Memory](https://img.shields.io/badge/内存-个位数MB-purple?style=for-the-badge)](#技术架构)
+# ClewdR
 
-  <h3>🌍 语言支持</h3>
-  <p>
-    <a href="./README.md"><strong>🇺🇸 English</strong></a> |
-    <a href="./README_zh.md"><strong>🇨🇳 简体中文</strong></a>
-  </p>
-</div>
+<p align="center">
+  <img src="./assets/clewdr-logo.svg" alt="ClewdR" height="60">
+</p>
+
+ClewdR 是面向 Claude（Claude.ai、Claude Code）和 Google Gemini（AI Studio、Vertex AI）的 Rust 代理。  
+它提供低资源占用的多端点转发，并附带一个 React 管理界面用于管理 Cookie、密钥和配置。
 
 ---
 
-## 🎯 **什么是 ClewdR？**
+## 核心特点
 
-**ClewdR** 是一个生产级的高性能代理服务器，专为 **Claude**（Claude.ai、Claude Code）和 **Google Gemini**（AI Studio、Vertex AI）设计。使用 **Rust** 构建，追求极致性能和最小资源占用，提供企业级可靠性和消费级友好体验。
+- 对接 Claude Web、Claude Code、Gemini AI Studio、Vertex AI。
+- 单个静态二进制可运行在 Linux、macOS、Windows、Android，另有 Docker 镜像。
+- 网页控制台可查看状态、编辑 Cookie/Key，并支持热加载配置。
+- 同时支持 OpenAI 兼容接口和原生 Claude/Gemini 协议，流式响应可用。
+- 默认使用本地 `clewdr.toml`，也可选择 SQLite/Postgres/MySQL。
+- 典型占用：`<10 MB` 内存、`<1 秒` 启动、`~15 MB` 二进制。
 
-### 🏆 **为什么选择 ClewdR？**
+## 支持的端点
 
-- **🚄 10倍性能**: 超越脚本语言实现
-- **💾 1/10内存**: 生产环境仅占用个位数MB
-- **🔧 生产就绪**: 轻松处理每秒上千请求
-- **🌐 多平台**: 原生支持 Windows、macOS、Linux、Android
+| 服务 | 地址 |
+|------|------|
+| Claude 原生 | `http://127.0.0.1:8484/v1/messages` |
+| Claude OpenAI 兼容 | `http://127.0.0.1:8484/v1/chat/completions` |
+| Claude Code | `http://127.0.0.1:8484/code/v1/messages` |
+| Gemini 原生 | `http://127.0.0.1:8484/v1/v1beta/generateContent` |
+| Gemini OpenAI 兼容 | `http://127.0.0.1:8484/gemini/chat/completions` |
+| Vertex AI 代理 | `http://127.0.0.1:8484/v1/vertex/v1beta/` |
 
-## ✨ **核心功能**
+所有端点均支持流式返回。
 
-<table>
-  <tr>
-    <td width="50%">
+## 快速开始
 
-### 🎨 **全功能Web界面**
+1. 从 GitHub Releases 下载对应平台的最新版。  
+   Linux/macOS 示例：
+   ```bash
+   curl -L -o clewdr.tar.gz https://github.com/Xerxes-2/clewdr/releases/latest/download/clewdr-linux-x64.tar.gz
+   tar -xzf clewdr.tar.gz && cd clewdr-linux-x64
+   chmod +x clewdr
+   ```
+2. 运行二进制：
+   ```bash
+   ./clewdr
+   ```
+3. 打开 `http://127.0.0.1:8484`，使用控制台（或 Docker 容器日志）显示的管理员密码登录。
 
-- **React驱动的控制台** 实时监控
-- **多语言支持** 中英文界面
-- **安全认证** 自动生成密码
-- **热配置重载** 无需重启服务
-- **可视化Cookie和Key管理**
+## Web 管理界面
 
-### 🏗️ **企业级架构**
+- `Dashboard`：查看健康状态、限流命中、连接数。
+- `Claude`：粘贴浏览器导出的 Cookie，ClewdR 自动检测有效性。
+- `Gemini`：录入 AI Studio 密钥，可选配置 Vertex OAuth。
+- `Settings`：修改管理员密码、上游代理、指纹配置，支持热重载。
 
-- **Tokio + Axum** 异步运行时最大吞吐量
-- **事件驱动设计** 组件解耦
-- **Moka缓存技术** 智能失效机制
-- **Chrome级别指纹识别** 无缝API访问
-- **多线程处理** 最优资源使用
+如忘记密码，删除 `clewdr.toml` 再启动即可。Docker 建议挂载该文件所在目录以持久化。
 
-### 🧠 **智能资源管理**
+## 配置上游
 
-- **智能Cookie轮换** 状态分类
-- **API密钥健康监控** 自动故障转移
-- **限流保护** 指数退避算法
-- **连接池优化** Keep-Alive保持
+### Claude
 
-    </td>
-    <td width="50%">
+1. 在浏览器开发者工具导出 Claude.ai Cookie。  
+2. 粘贴至 Claude 页签并保存，ClewdR 会实时标记状态。  
+3. 如需自定义网络出口，可设置上游代理或指纹选项。
 
-### 🌍 **通用兼容性**
+### Gemini
 
-- **静态编译** 单文件部署，零依赖
-- **跨平台原生** Windows、macOS、Linux、Android
-- **Docker就绪** 优化镜像
-- **反向代理友好** 自定义端点支持
+1. 在 Gemini 页签添加 AI Studio API Key。  
+2. 若使用 Vertex AI，填写 OAuth Client 信息与项目参数。  
+3. 可在界面或请求中指定默认模型。
 
-### 🚀 **协议支持**
+## 客户端示例
 
-#### **Claude集成**
-
-- ✅ **Claude.ai** Web界面
-- ✅ **Claude Code** 专门支持
-- ✅ **系统提示缓存** 提升效率
-- ✅ **扩展思考模式**
-- ✅ **图片附件** 和网页搜索
-- ✅ **自定义停止序列**
-
-#### **Google Gemini集成**
-
-- ✅ **AI Studio** 和 **Vertex AI**
-- ✅ **OAuth2认证** 企业级
-- ✅ **HTTP Keep-Alive** 优化
-- ✅ **模型切换** 自动检测
-
-#### **API兼容性**
-
-- ✅ **OpenAI格式** 直接替换
-- ✅ **原生格式** Claude和Gemini
-- ✅ **流式响应** 实时处理
-
-    </td>
-  </tr>
-
-</table>
-
-## 📊 **性能指标**
-
-<div align="center">
-
-| 指标 | ClewdR | 传统代理 |
-|------|--------|----------|
-| **内存使用** | `<10 MB` | `100-500 MB` |
-| **请求/秒** | `1000+` | `100-200` |
-| **启动时间** | `<1 秒` | `5-15 秒` |
-| **二进制大小** | `~15 MB` | `50-200 MB` |
-| **依赖项** | `零依赖` | `Node.js/Python + 库` |
-
-</div>
-
-## 🚀 **快速上手指南**
-
-### **第一步：下载运行**
-
-```bash
-# 下载对应平台的最新版本
-wget https://github.com/Xerxes-2/clewdr/releases/latest/download/clewdr-[平台]
-
-# 如果需要，解压二进制文件
-tar -xzf clewdr-[平台].tar.gz
-
-# 进入目录
-cd clewdr-[平台]
-
-# 赋予执行权限 (Linux/macOS)
-chmod +x clewdr
-
-# 运行 ClewdR
-./clewdr
-```
-
-<details>
-<summary>📦 <strong>平台下载链接</strong></summary>
-
-| 平台 | 架构 | 下载链接 |
-|------|------|----------|
-| 🪟 Windows | x64 | [clewdr-windows-x64.exe](https://github.com/Xerxes-2/clewdr/releases/latest) |
-| 🐧 Linux | x64 | [clewdr-linux-x64](https://github.com/Xerxes-2/clewdr/releases/latest) |
-| 🐧 Linux | ARM64 | [clewdr-linux-arm64](https://github.com/Xerxes-2/clewdr/releases/latest) |
-| 🍎 macOS | x64 | [clewdr-macos-x64](https://github.com/Xerxes-2/clewdr/releases/latest) |
-| 🍎 macOS | ARM64 (M1/M2) | [clewdr-macos-arm64](https://github.com/Xerxes-2/clewdr/releases/latest) |
-| 🤖 Android | ARM64 | [clewdr-android-arm64](https://github.com/Xerxes-2/clewdr/releases/latest) |
-
-</details>
-
-### **第二步：访问Web界面**
-
-1. 🌐 在浏览器中打开 **`http://127.0.0.1:8484`**
-2. 🔐 使用控制台显示的 **Web Admin Password** 登录
-3. 🎉 欢迎来到 ClewdR 管理界面！
-
-> **💡 专业提示:**
->
-> - **忘记密码？** 删除 `clewdr.toml` 文件并重启
-> - **Docker用户:** 密码显示在容器日志中
-> - **修改密码:** 使用Web界面设置
-
-### **第三步：配置服务**
-
-<table>
-<tr>
-<td width="50%">
-
-#### 🍃 **Claude 配置**
-
-1. **添加Cookie**: 粘贴您的 Claude.ai 会话cookie
-2. **配置代理**: 如需要设置上游代理
-3. **测试连接**: 在控制台验证cookie状态
-
-</td>
-<td width="50%">
-
-#### 🔹 **Gemini 配置**
-
-1. **添加API密钥**: 输入您的 Google AI Studio 密钥
-2. **Vertex AI** (可选): 为企业配置OAuth2
-3. **模型选择**: 选择您偏好的模型
-
-</td>
-</tr>
-</table>
-
-### **第四步：连接应用程序**
-
-ClewdR 提供多种API端点。查看控制台输出获取可用端点：
-
-#### 🔗 **API端点**
-
-```bash
-# Claude 端点
-Claude Web:    http://127.0.0.1:8484/v1/messages          # 原生格式
-Claude OpenAI: http://127.0.0.1:8484/v1/chat/completions  # OpenAI兼容
-Claude Code:   http://127.0.0.1:8484/code/v1/messages     # Claude Code
-
-# Gemini 端点
-Gemini Native: http://127.0.0.1:8484/v1/v1beta/generateContent    # 原生格式
-Gemini OpenAI: http://127.0.0.1:8484/gemini/chat/completions      # OpenAI兼容
-Vertex AI:     http://127.0.0.1:8484/v1/vertex/v1beta/            # Vertex AI
-```
-
-#### ⚙️ **应用配置示例**
-
-<details>
-<summary><strong>SillyTavern 配置</strong></summary>
+SillyTavern：
 
 ```json
 {
   "api_url": "http://127.0.0.1:8484/v1/chat/completions",
-  "api_key": "控制台显示的API密码",
+  "api_key": "控制台显示的密码",
   "model": "claude-3-sonnet-20240229"
 }
 ```
 
-</details>
-
-<details>
-<summary><strong>Continue VSCode 扩展</strong></summary>
+Continue（VS Code）：
 
 ```json
 {
@@ -227,39 +91,67 @@ Vertex AI:     http://127.0.0.1:8484/v1/vertex/v1beta/            # Vertex AI
       "provider": "openai",
       "model": "claude-3-sonnet-20240229",
       "apiBase": "http://127.0.0.1:8484/v1/",
-      "apiKey": "控制台显示的API密码"
+      "apiKey": "控制台显示的密码"
     }
   ]
 }
 ```
 
-</details>
-
-<details>
-<summary><strong>Cursor IDE 配置</strong></summary>
+Cursor：
 
 ```json
 {
   "openaiApiBase": "http://127.0.0.1:8484/v1/",
-  "openaiApiKey": "控制台显示的API密码"
+  "openaiApiKey": "控制台显示的密码"
 }
 ```
 
-</details>
+## 持久化选项
 
-### **第五步：验证监控**
+默认使用 `clewdr.toml`。若需数据库，请在构建时启用匹配特性并配置 `persistence.mode`。
 
-- ✅ 在Web控制台检查cookie/密钥状态
-- ✅ 监控请求日志确认连接成功
-- ✅ 使用简单聊天请求测试
-- ✅ 享受超快的LLM代理性能！
+### 构建包含数据库支持的二进制
 
-## 社区资源
+```bash
+cargo build --release --no-default-features --features "embed-resource,xdg,db-sqlite"
+```
 
-**Github 聚合 Wiki**: <https://github.com/Xerxes-2/clewdr/wiki>
+可选特性：`db-sqlite`、`db-postgres`、`db-mysql`（均会启用基础 `db` 特性）。  
+自定义 Docker 镜像需在 `cargo build` 步骤中加入同样的特性。
+
+### 配置示例
+
+`clewdr.toml`：
+
+```toml
+[persistence]
+mode = "postgres"                           # sqlite | postgres | mysql
+database_url = "postgres://user:pass@db:5432/clewdr"
+```
+
+- SQLite 可设置 `sqlite_path = "/var/lib/clewdr/clewdr.db"`，ClewdR 会自动扩展为 `sqlite:///...` 并尝试创建目录。
+- Postgres/MySQL 需要提供 `database_url`。
+- 环境变量使用 Figment 的双下划线形式，例如：
+
+  ```bash
+  export CLEWDR_PERSISTENCE__MODE=sqlite
+  export CLEWDR_PERSISTENCE__SQLITE_PATH=/var/lib/clewdr/clewdr.db
+  export CLEWDR_PERSISTENCE__DATABASE_URL="postgres://user:pass@db/clewdr"
+  ```
+
+运行提示：
+
+- 首次启动会执行 SeaORM 迁移，创建 `config`、`cookies`、`keys`、`wasted` 表。
+- `GET /api/storage/status` 可检查存储健康状态；若数据库不可用，写入接口会直接失败。
+- 切换到数据库模式前，请确认二进制已启用对应特性（`clewdr -V` 可查看）。
+
+## 资源
+
+- Wiki：<https://github.com/Xerxes-2/clewdr/wiki>  
+  - 数据库持久化指南（中文）：`wiki/database.md`
 
 ## 致谢
 
-- [wreq](https://github.com/0x676e67/wreq) - 用于API访问的出色浏览器指纹识别库。
-- [Clewd 修改版](https://github.com/teralomaniac/clewd) - 原始Clewd的修改版本，提供了许多灵感和基础功能。
-- [Clove](https://github.com/mirrorange/clove) - 提供Claude Code支持逻辑。
+- [wreq](https://github.com/0x676e67/wreq) 提供指纹识别能力。  
+- [Clewd](https://github.com/teralomaniac/clewd) 提供参考实现。  
+- [Clove](https://github.com/mirrorange/clove) 提供 Claude Code 相关逻辑。

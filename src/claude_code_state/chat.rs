@@ -5,23 +5,24 @@ use axum::{
 use colored::Colorize;
 use eventsource_stream::Eventsource;
 use futures::TryStreamExt;
+use http::header::{ACCEPT, USER_AGENT};
 use snafu::{GenerateImplicitData, ResultExt};
 use tracing::{Instrument, error, info, warn};
-use wreq::{
-    ClientBuilder, Method, Url,
-    header::{ORIGIN, REFERER},
-};
-use wreq_util::Emulation;
+use wreq::Method;
 
 use crate::{
     claude_code_state::{ClaudeCodeState, TokenStatus},
-    config::{CLAUDE_CONSOLE_ENDPOINT, CLAUDE_ENDPOINT, CLEWDR_CONFIG, ModelFamily},
+    config::{CLEWDR_CONFIG, ModelFamily},
     error::{CheckClaudeErr, ClewdrError, WreqSnafu},
+    services::cookie_actor::CookieActorHandle,
     types::claude::{CountMessageTokensResponse, CreateMessageParams},
 };
 
-const CLAUDE_BETA_BASE: &str = "oauth-2025-04-20";
+pub(super) const CLAUDE_BETA_BASE: &str = "oauth-2025-04-20";
 const CLAUDE_BETA_CONTEXT_1M: &str = "oauth-2025-04-20,context-1m-2025-08-07";
+const CLAUDE_USAGE_URL: &str = "https://api.anthropic.com/api/oauth/usage";
+const CLAUDE_CODE_USER_AGENT: &str = "claude-code/2.0.32";
+pub(super) const CLAUDE_API_VERSION: &str = "2023-06-01";
 
 impl ClaudeCodeState {
     /// Attempts to send a chat message to Claude API with retry mechanism
@@ -186,7 +187,7 @@ impl ClaudeCodeState {
             .post(self.endpoint.join("v1/messages").expect("Url parse error"))
             .bearer_auth(access_token)
             .header("anthropic-beta", beta_header)
-            .header("anthropic-version", "2023-06-01")
+            .header("anthropic-version", CLAUDE_API_VERSION)
             .json(body)
             .send()
             .await
@@ -221,6 +222,49 @@ impl ClaudeCodeState {
                 warn!("Failed to persist count_tokens permission: {}", err);
             }
         }
+    }
+
+    pub async fn fetch_usage_metrics(&mut self) -> Result<serde_json::Value, ClewdrError> {
+        match self.check_token() {
+            TokenStatus::None => {
+                let org = self.get_organization().await?;
+                let code = self.exchange_code(&org).await?;
+                self.exchange_token(code).await?;
+            }
+            TokenStatus::Expired => {
+                self.refresh_token().await?;
+            }
+            TokenStatus::Valid => {}
+        }
+
+        let access_token = self
+            .cookie
+            .as_ref()
+            .and_then(|c| c.token.as_ref())
+            .ok_or(ClewdrError::UnexpectedNone {
+                msg: "No access token available",
+            })?
+            .access_token
+            .to_owned();
+
+        self.client
+            .request(Method::GET, CLAUDE_USAGE_URL)
+            .bearer_auth(access_token)
+            .header(ACCEPT, "application/json, text/plain, */*")
+            .header(USER_AGENT, CLAUDE_CODE_USER_AGENT)
+            .header("anthropic-beta", CLAUDE_BETA_BASE)
+            .send()
+            .await
+            .context(WreqSnafu {
+                msg: "Failed to fetch usage metrics",
+            })?
+            .check_claude()
+            .await?
+            .json::<serde_json::Value>()
+            .await
+            .context(WreqSnafu {
+                msg: "Failed to parse usage metrics response",
+            })
     }
 
     pub async fn try_count_tokens(
@@ -402,7 +446,7 @@ impl ClaudeCodeState {
         }
         if let Some(cookie) = self.cookie.as_mut() {
             // Lazy boundary refresh if due, then reset period counters and start fresh
-            Self::update_cookie_boundaries_if_due(cookie).await;
+            Self::update_cookie_boundaries_if_due(cookie, &self.cookie_actor_handle).await;
             cookie.add_and_bucket_usage(input, output, family);
             let cloned = cookie.clone();
             if let Err(err) = self.cookie_actor_handle.return_cookie(cloned, None).await {
@@ -443,7 +487,8 @@ impl ClaudeCodeState {
                             let mut c = cookie.clone();
                             tokio::spawn(async move {
                                 // Update period boundaries if needed, then accumulate
-                                ClaudeCodeState::update_cookie_boundaries_if_due(&mut c).await;
+                                ClaudeCodeState::update_cookie_boundaries_if_due(&mut c, &handle)
+                                    .await;
                                 c.add_and_bucket_usage(input_tokens, total_out, family);
                                 let _ = handle.return_cookie(c, None).await;
                             });
@@ -538,7 +583,7 @@ impl ClaudeCodeState {
             )
             .bearer_auth(access_token)
             .header("anthropic-beta", beta_header)
-            .header("anthropic-version", "2023-06-01")
+            .header("anthropic-version", CLAUDE_API_VERSION)
             .json(body)
             .send()
             .await
@@ -570,7 +615,10 @@ impl ClaudeCodeState {
     // ---------------------------------------------
     // Lazy boundary refresh (no timers, fetch-on-due)
     // ---------------------------------------------
-    async fn update_cookie_boundaries_if_due(cookie: &mut crate::config::CookieStatus) {
+    async fn update_cookie_boundaries_if_due(
+        cookie: &mut crate::config::CookieStatus,
+        handle: &crate::services::cookie_actor::CookieActorHandle,
+    ) {
         let now = chrono::Utc::now().timestamp();
         const SESSION_WINDOW_SECS: i64 = 5 * 60 * 60; // 5h
         const WEEKLY_WINDOW_SECS: i64 = 7 * 24 * 60 * 60; // 7d
@@ -597,7 +645,7 @@ impl ClaudeCodeState {
         }
 
         cookie.resets_last_checked_at = Some(now);
-        if let Some((sess, week, opus)) = Self::fetch_usage_resets(&cookie.cookie).await {
+        if let Some((sess, week, opus)) = Self::fetch_usage_resets(cookie, handle).await {
             // Unknown -> decide track/not-track
             if unknown(cookie.session_has_reset) {
                 cookie.session_has_reset = Some(sess.is_some());
@@ -664,64 +712,15 @@ impl ClaudeCodeState {
     }
 
     async fn fetch_usage_resets(
-        cookie: &crate::config::ClewdrCookie,
+        cookie: &mut crate::config::CookieStatus,
+        handle: &CookieActorHandle,
     ) -> Option<(Option<i64>, Option<i64>, Option<i64>)> {
-        // Build a fresh client (mirrors misc.rs behavior)
-        let mut builder = ClientBuilder::new()
-            .cookie_store(true)
-            .emulation(Emulation::Chrome136);
-        if let Some(proxy) = CLEWDR_CONFIG.load().wreq_proxy.clone() {
-            builder = builder.proxy(proxy);
+        let mut state = ClaudeCodeState::from_cookie(handle.clone(), cookie.clone()).ok()?;
+        let usage = state.fetch_usage_metrics().await.ok()?;
+        state.return_cookie(None).await;
+        if let Some(updated) = state.cookie.clone() {
+            *cookie = updated;
         }
-        let client = builder.build().ok()?;
-
-        // Attach cookie for both api and console domains
-        let endpoint: Url = CLEWDR_CONFIG.load().endpoint();
-        let cookie_header = http::HeaderValue::from_str(&cookie.to_string()).ok()?;
-        client.set_cookie(&endpoint, &cookie_header);
-        let console_url = Url::parse(CLAUDE_CONSOLE_ENDPOINT).ok()?;
-        client.set_cookie(&console_url, &cookie_header);
-
-        // Discover organization UUID (prefer chat-capable org)
-        let orgs_url = endpoint.join("api/organizations").ok()?;
-        let orgs_res = client
-            .request(Method::GET, orgs_url)
-            .header(ORIGIN, crate::config::CLAUDE_ENDPOINT)
-            .header(REFERER, format!("{CLAUDE_ENDPOINT}new"))
-            .send()
-            .await
-            .ok()?;
-        let orgs_val: serde_json::Value = orgs_res.json().await.ok()?;
-        let org_uuid = orgs_val
-            .as_array()
-            .and_then(|a| {
-                a.iter()
-                    .filter(|v| {
-                        v.get("capabilities")
-                            .and_then(|c| c.as_array())
-                            .map(|c| c.iter().any(|x| x.as_str() == Some("chat")))
-                            .unwrap_or(false)
-                    })
-                    .max_by_key(|v| {
-                        v.get("capabilities")
-                            .and_then(|c| c.as_array())
-                            .map(|c| c.len())
-                            .unwrap_or_default()
-                    })
-                    .and_then(|v| v.get("uuid").and_then(|u| u.as_str()))
-            })
-            .or_else(|| {
-                orgs_val
-                    .get(0)
-                    .and_then(|v| v.get("uuid").and_then(|u| u.as_str()))
-            })?;
-
-        // Query usage from console API
-        let usage_url = console_url
-            .join(&format!("api/organizations/{}/usage", org_uuid))
-            .ok()?;
-        let usage_res = client.request(Method::GET, usage_url).send().await.ok()?;
-        let usage: serde_json::Value = usage_res.json().await.ok()?;
 
         let parse_reset = |obj_key: &str| -> Option<i64> {
             usage

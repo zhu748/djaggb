@@ -50,6 +50,36 @@ impl ClaudeCodeState {
         }
     }
 
+    /// Build a ClaudeCodeState initialized with an existing cookie snapshot
+    pub fn from_cookie(
+        cookie_actor_handle: CookieActorHandle,
+        cookie: CookieStatus,
+    ) -> Result<Self, ClewdrError> {
+        let mut state = Self::new(cookie_actor_handle);
+        state.cookie = Some(cookie);
+        let cookie_value = state
+            .cookie
+            .as_ref()
+            .ok_or(ClewdrError::UnexpectedNone {
+                msg: "Cookie missing while initializing state",
+            })?
+            .cookie
+            .to_string();
+        let header_value = HeaderValue::from_str(cookie_value.as_str())?;
+        state.cookie_header_value = header_value.clone();
+        let mut client = ClientBuilder::new()
+            .cookie_store(true)
+            .emulation(Emulation::Chrome136);
+        if let Some(ref proxy) = state.proxy {
+            client = client.proxy(proxy.to_owned());
+        }
+        state.client = client.build().context(WreqSnafu {
+            msg: "Failed to build client for cookie",
+        })?;
+        state.client.set_cookie(&state.endpoint, &header_value);
+        Ok(state)
+    }
+
     /// Returns the current cookie to the cookie manager
     /// Optionally provides a reason for returning the cookie (e.g., invalid, banned)
     pub async fn return_cookie(&self, reason: Option<Reason>) {

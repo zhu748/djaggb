@@ -8,7 +8,10 @@ use oauth2::{
         BasicErrorResponse, BasicRevocationErrorResponse, BasicTokenIntrospectionResponse,
         BasicTokenResponse,
     },
-    http,
+    http::{
+        self,
+        header::{HeaderName, HeaderValue},
+    },
 };
 use serde_json::Value;
 use snafu::{OptionExt, ResultExt};
@@ -19,6 +22,8 @@ use crate::{
     config::{CC_REDIRECT_URI, CC_TOKEN_URL, CLEWDR_CONFIG, CookieStatus, TokenInfo},
     error::{CheckClaudeErr, ClewdrError, UnexpectedNoneSnafu, UrlSnafu, WreqSnafu},
 };
+
+use super::chat::{CLAUDE_API_VERSION, CLAUDE_BETA_BASE};
 
 type ClaudeOauthClient = Client<
     BasicErrorResponse,
@@ -43,7 +48,19 @@ impl<'c> AsyncHttpClient<'c> for OauthClient {
     type Future =
         Pin<Box<dyn Future<Output = Result<HttpResponse, Self::Error>> + Send + Sync + 'c>>;
 
-    fn call(&'c self, request: HttpRequest) -> Self::Future {
+    fn call(&'c self, mut request: HttpRequest) -> Self::Future {
+        {
+            let headers = request.headers_mut();
+            headers.insert(
+                HeaderName::from_static("anthropic-version"),
+                HeaderValue::from_static(CLAUDE_API_VERSION),
+            );
+            headers.insert(
+                HeaderName::from_static("anthropic-beta"),
+                HeaderValue::from_static(CLAUDE_BETA_BASE),
+            );
+        }
+
         Box::pin(async move {
             let response = self
                 .client

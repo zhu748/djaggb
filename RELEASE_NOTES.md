@@ -1,5 +1,5 @@
-# v0.11.21
+# Release Notes
 
 ## Bug Fixes
 
-- Fix double slash problem for Claude Web API endpoints
+- Update Claude Code OAuth token refresh to use api.anthropic.com with API-style headers for better compatibility
