@@ -46,7 +46,13 @@ impl ClewdrUpdater {
     /// * `Result<Self, ClewdrError>` - A new updater instance or an error
     pub fn new() -> Result<Self, ClewdrError> {
         let authors = option_env!("CARGO_PKG_AUTHORS").unwrap_or_default();
-        let repo_owner = authors.split(':').next().unwrap_or("Xerxes-2");
+        let repo_owner = authors
+            .split(':')
+            .next()
+            .and_then(|author| author.split('<').next())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .unwrap_or("Xerxes-2");
         let repo_name = env!("CARGO_PKG_NAME");
         let policy = wreq::redirect::Policy::default();
         let client = wreq::Client::builder()

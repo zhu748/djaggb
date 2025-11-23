@@ -4,12 +4,6 @@ use std::{
 };
 
 fn main() {
-    if env::var("CARGO_CFG_TARGET_OS").unwrap() == "android" {
-        android();
-    }
-}
-
-fn android() {
     #[cfg(all(feature = "mimalloc", feature = "dhat-heap"))]
     compile_error!(
         "feature \"mimalloc\" and feature \"dhat-heap\" cannot be enabled at the same time"
@@ -24,6 +18,12 @@ fn android() {
     compile_error!("feature \"portable\" or feature \"xdg\" must be enabled");
     #[cfg(all(feature = "portable", feature = "xdg"))]
     compile_error!("feature \"portable\" and feature \"xdg\" cannot be enabled at the same time");
+    if env::var("CARGO_CFG_TARGET_OS").unwrap() == "android" {
+        android();
+    }
+}
+
+fn android() {
     println!("cargo:rustc-link-lib=c++_shared");
     let out_dir = env::var("OUT_DIR").unwrap();
     let output_path = env::var("CARGO_NDK_OUTPUT_PATH").unwrap_or(out_dir);
