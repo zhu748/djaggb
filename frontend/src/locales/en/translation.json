@@ -112,6 +112,9 @@
       "available": "Available",
       "used": "Used for {{time}}",
       "resets": "Resets at {{time}}",
+      "cooldownFull": "Full cooldown",
+      "cooldownOpus": "Opus cooldown",
+      "cooldownSonnet": "Sonnet cooldown",
       "unknownReset": "Unknown reset time",
       "reasons": {
         "freAccount": "Free account",
@@ -142,6 +145,7 @@
     "quota": {
       "session": "Session utilization",
       "sevenDay": "7-day utilization",
+      "sevenDaySonnet": "7-day Sonnet utilization",
       "sevenDayOpus": "7-day Opus utilization",
       "total": "Total usage",
       "resetsAt": "Resets at {{time}}"

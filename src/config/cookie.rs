@@ -88,6 +88,8 @@ pub struct CookieStatus {
     #[serde(default)]
     pub weekly_usage: UsageBreakdown,
     #[serde(default)]
+    pub weekly_sonnet_usage: UsageBreakdown,
+    #[serde(default)]
     pub weekly_opus_usage: UsageBreakdown,
     #[serde(default)]
     pub lifetime_usage: UsageBreakdown,
@@ -97,6 +99,8 @@ pub struct CookieStatus {
     pub session_resets_at: Option<i64>,
     #[serde(default)]
     pub weekly_resets_at: Option<i64>,
+    #[serde(default)]
+    pub weekly_sonnet_resets_at: Option<i64>,
     #[serde(default)]
     pub weekly_opus_resets_at: Option<i64>,
 
@@ -110,6 +114,8 @@ pub struct CookieStatus {
     pub session_has_reset: Option<bool>,
     #[serde(default)]
     pub weekly_has_reset: Option<bool>,
+    #[serde(default)]
+    pub weekly_sonnet_has_reset: Option<bool>,
     #[serde(default)]
     pub weekly_opus_has_reset: Option<bool>,
 }
@@ -160,14 +166,17 @@ impl CookieStatus {
 
             session_usage: UsageBreakdown::default(),
             weekly_usage: UsageBreakdown::default(),
+            weekly_sonnet_usage: UsageBreakdown::default(),
             weekly_opus_usage: UsageBreakdown::default(),
             lifetime_usage: UsageBreakdown::default(),
             session_resets_at: None,
             weekly_resets_at: None,
+            weekly_sonnet_resets_at: None,
             weekly_opus_resets_at: None,
             resets_last_checked_at: None,
             session_has_reset: None,
             weekly_has_reset: None,
+            weekly_sonnet_has_reset: None,
             weekly_opus_has_reset: None,
         })
     }
@@ -186,6 +195,7 @@ impl CookieStatus {
                 reset_time: None,
                 session_usage: UsageBreakdown::default(),
                 weekly_usage: UsageBreakdown::default(),
+                weekly_sonnet_usage: UsageBreakdown::default(),
                 weekly_opus_usage: UsageBreakdown::default(),
                 ..self
             };
@@ -209,6 +219,7 @@ impl CookieStatus {
         // Legacy window counters removed; reset session buckets conservatively
         self.session_usage = UsageBreakdown::default();
         self.weekly_usage = UsageBreakdown::default();
+        self.weekly_sonnet_usage = UsageBreakdown::default();
         self.weekly_opus_usage = UsageBreakdown::default();
     }
 
@@ -222,6 +233,10 @@ impl CookieStatus {
 
     pub fn set_weekly_resets_at(&mut self, ts: Option<i64>) {
         self.weekly_resets_at = ts;
+    }
+
+    pub fn set_weekly_sonnet_resets_at(&mut self, ts: Option<i64>) {
+        self.weekly_sonnet_resets_at = ts;
     }
 
     pub fn set_weekly_opus_resets_at(&mut self, ts: Option<i64>) {
@@ -270,6 +285,24 @@ impl CookieStatus {
                     self.weekly_usage.sonnet_input_tokens.saturating_add(input);
                 self.weekly_usage.sonnet_output_tokens = self
                     .weekly_usage
+                    .sonnet_output_tokens
+                    .saturating_add(output);
+
+                // weekly_sonnet bucket (only sonnet contributes)
+                self.weekly_sonnet_usage.total_input_tokens = self
+                    .weekly_sonnet_usage
+                    .total_input_tokens
+                    .saturating_add(input);
+                self.weekly_sonnet_usage.total_output_tokens = self
+                    .weekly_sonnet_usage
+                    .total_output_tokens
+                    .saturating_add(output);
+                self.weekly_sonnet_usage.sonnet_input_tokens = self
+                    .weekly_sonnet_usage
+                    .sonnet_input_tokens
+                    .saturating_add(input);
+                self.weekly_sonnet_usage.sonnet_output_tokens = self
+                    .weekly_sonnet_usage
                     .sonnet_output_tokens
                     .saturating_add(output);
             }

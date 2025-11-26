@@ -80,9 +80,42 @@ const CookieVisualization: React.FC = () => {
     return message;
   };
 
+  const getCooldownDisplay = (status: CookieItem) => {
+    if (status.reset_time) {
+      return {
+        label: t("cookieStatus.status.cooldownFull") as string,
+        time: formatTimestamp(status.reset_time),
+      };
+    }
+
+    if (status.seven_day_opus_resets_at) {
+      return {
+        label: t("cookieStatus.status.cooldownOpus") as string,
+        time: formatIsoTimestamp(status.seven_day_opus_resets_at),
+      };
+    }
+
+    if (status.seven_day_sonnet_resets_at) {
+      return {
+        label: t("cookieStatus.status.cooldownSonnet") as string,
+        time: formatIsoTimestamp(status.seven_day_sonnet_resets_at),
+      };
+    }
+
+    if (status.seven_day_resets_at) {
+      return {
+        label: t("cookieStatus.status.cooldownFull") as string,
+        time: formatIsoTimestamp(status.seven_day_resets_at),
+      };
+    }
+
+    return null;
+  };
+
   const renderUsageStats = (status: CookieItem) => {
     const s = status.session_usage || {};
     const w = status.weekly_usage || {};
+    const ws = status.weekly_sonnet_usage || {};
     const wo = status.weekly_opus_usage || {};
     const lt = status.lifetime_usage || {};
 
@@ -112,6 +145,7 @@ const CookieVisualization: React.FC = () => {
 
     const sReq = toReq(s);
     const wReq = toReq(w);
+    const wsReq = toReq(ws);
     const woReq = toReq(wo);
     const ltReq = toReq(lt);
 
@@ -137,6 +171,14 @@ const CookieVisualization: React.FC = () => {
         b: wReq,
         showSonnet: wReq.sonnet_input_tokens > 0 || wReq.sonnet_output_tokens > 0,
         showOpus: wReq.opus_input_tokens > 0 || wReq.opus_output_tokens > 0,
+      });
+    }
+    if (anyNonZero(wsReq)) {
+      groups.push({
+        title: t("cookieStatus.quota.sevenDaySonnet") as string,
+        b: wsReq,
+        showSonnet: true,
+        showOpus: wsReq.opus_input_tokens > 0 || wsReq.opus_output_tokens > 0,
       });
     }
     if (anyNonZero(woReq)) {
@@ -198,9 +240,13 @@ const CookieVisualization: React.FC = () => {
   const renderQuotaStats = (status: CookieItem) => {
     const sess = status.session_utilization;
     const seven = status.seven_day_utilization;
+    const sevenSonnet = status.seven_day_sonnet_utilization;
     const opus = status.seven_day_opus_utilization;
     const hasAny =
-      typeof sess === "number" || typeof seven === "number" || typeof opus === "number";
+      typeof sess === "number" ||
+      typeof seven === "number" ||
+      typeof opus === "number" ||
+      typeof sevenSonnet === "number";
     if (!hasAny) return null;
     return (
       <div className="grid gap-1 text-xs text-gray-400">
@@ -223,6 +269,18 @@ const CookieVisualization: React.FC = () => {
               <span className="ml-1 text-gray-500">
                 {t("cookieStatus.quota.resetsAt", {
                   time: formatIsoTimestamp(status.seven_day_resets_at),
+                })}
+              </span>
+            )}
+          </div>
+        )}
+        {typeof sevenSonnet === "number" && (
+          <div>
+            {t("cookieStatus.quota.sevenDaySonnet")}: {sevenSonnet}%
+            {status.seven_day_sonnet_resets_at && (
+              <span className="ml-1 text-gray-500">
+                {t("cookieStatus.quota.resetsAt", {
+                  time: formatIsoTimestamp(status.seven_day_sonnet_resets_at),
                 })}
               </span>
             )}
@@ -517,11 +575,11 @@ const CookieVisualization: React.FC = () => {
                 </div>
                 <div className="flex items-center">
                   <span className="text-gray-400">
-                    {status.reset_time
-                      ? t("cookieStatus.status.resets", {
-                          time: formatTimestamp(status.reset_time),
-                        })
-                      : t("cookieStatus.status.unknownReset")}
+                    {(() => {
+                      const cooldown = getCooldownDisplay(status);
+                      if (!cooldown) return t("cookieStatus.status.unknownReset");
+                      return `${cooldown.label}: ${cooldown.time}`;
+                    })()}
                   </span>
                   <DeleteButton
                     cookie={status.cookie}

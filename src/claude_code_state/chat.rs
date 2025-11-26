@@ -629,29 +629,37 @@ impl ClaudeCodeState {
 
         let session_tracked = tracked(cookie.session_has_reset);
         let weekly_tracked = tracked(cookie.weekly_has_reset);
+        let sonnet_tracked = tracked(cookie.weekly_sonnet_has_reset);
         let opus_tracked = tracked(cookie.weekly_opus_has_reset);
 
         let session_due = session_tracked && due(cookie.session_resets_at);
         let weekly_due = weekly_tracked && due(cookie.weekly_resets_at);
+        let sonnet_due = sonnet_tracked && due(cookie.weekly_sonnet_resets_at);
         let opus_due = opus_tracked && due(cookie.weekly_opus_resets_at);
 
         let need_probe_unknown = unknown(cookie.session_has_reset)
             || unknown(cookie.weekly_has_reset)
+            || unknown(cookie.weekly_sonnet_has_reset)
             || unknown(cookie.weekly_opus_has_reset);
-        let any_due = session_due || weekly_due || opus_due;
+        let any_due = session_due || weekly_due || sonnet_due || opus_due;
 
         if !(need_probe_unknown || any_due) {
             return;
         }
 
         cookie.resets_last_checked_at = Some(now);
-        if let Some((sess, week, opus)) = Self::fetch_usage_resets(cookie, handle).await {
+        if let Some((sess, week, opus, sonnet)) =
+            Self::fetch_usage_resets(cookie, handle).await
+        {
             // Unknown -> decide track/not-track
             if unknown(cookie.session_has_reset) {
                 cookie.session_has_reset = Some(sess.is_some());
             }
             if unknown(cookie.weekly_has_reset) {
                 cookie.weekly_has_reset = Some(week.is_some());
+            }
+            if unknown(cookie.weekly_sonnet_has_reset) {
+                cookie.weekly_sonnet_has_reset = Some(sonnet.is_some());
             }
             if unknown(cookie.weekly_opus_has_reset) {
                 cookie.weekly_opus_has_reset = Some(opus.is_some());
@@ -663,6 +671,9 @@ impl ClaudeCodeState {
             }
             if weekly_due {
                 cookie.weekly_usage = crate::config::UsageBreakdown::default();
+            }
+            if sonnet_due {
+                cookie.weekly_sonnet_usage = crate::config::UsageBreakdown::default();
             }
             if opus_due {
                 cookie.weekly_opus_usage = crate::config::UsageBreakdown::default();
@@ -686,6 +697,14 @@ impl ClaudeCodeState {
                     cookie.weekly_resets_at = None;
                 }
             }
+            if cookie.weekly_sonnet_has_reset == Some(true) {
+                if let Some(ts) = sonnet {
+                    cookie.weekly_sonnet_resets_at = Some(ts);
+                } else {
+                    cookie.weekly_sonnet_has_reset = Some(false);
+                    cookie.weekly_sonnet_resets_at = None;
+                }
+            }
             if cookie.weekly_opus_has_reset == Some(true) {
                 if let Some(ts) = opus {
                     cookie.weekly_opus_resets_at = Some(ts);
@@ -704,6 +723,10 @@ impl ClaudeCodeState {
                 cookie.weekly_usage = crate::config::UsageBreakdown::default();
                 cookie.weekly_resets_at = Some(now + WEEKLY_WINDOW_SECS);
             }
+            if sonnet_due && sonnet_tracked {
+                cookie.weekly_sonnet_usage = crate::config::UsageBreakdown::default();
+                cookie.weekly_sonnet_resets_at = Some(now + WEEKLY_WINDOW_SECS);
+            }
             if opus_due && opus_tracked {
                 cookie.weekly_opus_usage = crate::config::UsageBreakdown::default();
                 cookie.weekly_opus_resets_at = Some(now + WEEKLY_WINDOW_SECS);
@@ -714,7 +737,7 @@ impl ClaudeCodeState {
     async fn fetch_usage_resets(
         cookie: &mut crate::config::CookieStatus,
         handle: &CookieActorHandle,
-    ) -> Option<(Option<i64>, Option<i64>, Option<i64>)> {
+    ) -> Option<(Option<i64>, Option<i64>, Option<i64>, Option<i64>)> {
         let mut state = ClaudeCodeState::from_cookie(handle.clone(), cookie.clone()).ok()?;
         let usage = state.fetch_usage_metrics().await.ok()?;
         state.return_cookie(None).await;
@@ -735,6 +758,7 @@ impl ClaudeCodeState {
             parse_reset("five_hour"),
             parse_reset("seven_day"),
             parse_reset("seven_day_opus"),
+            parse_reset("seven_day_sonnet"),
         ))
     }
 

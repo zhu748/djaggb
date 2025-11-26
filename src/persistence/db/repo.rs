@@ -110,6 +110,10 @@ pub async fn persist_cookie_upsert(c: &CookieStatus) -> Result<(), ClewdrError> 
         weekly_usage: Set(Some(
             serde_json::to_string(&c.weekly_usage).unwrap_or_else(|_| "{}".to_string()),
         )),
+        weekly_sonnet_usage: Set(Some(
+            serde_json::to_string(&c.weekly_sonnet_usage)
+                .unwrap_or_else(|_| "{}".to_string()),
+        )),
         weekly_opus_usage: Set(Some(
             serde_json::to_string(&c.weekly_opus_usage).unwrap_or_else(|_| "{}".to_string()),
         )),
@@ -132,6 +136,7 @@ pub async fn persist_cookie_upsert(c: &CookieStatus) -> Result<(), ClewdrError> 
                     ColumnCookie::CountTokensAllowed,
                     ColumnCookie::SessionUsage,
                     ColumnCookie::WeeklyUsage,
+                    ColumnCookie::WeeklySonnetUsage,
                     ColumnCookie::WeeklyOpusUsage,
                     ColumnCookie::LifetimeUsage,
                 ])
@@ -375,6 +380,11 @@ pub async fn export_current_config() -> Result<serde_json::Value, ClewdrError> {
                 c.weekly_usage = v;
             }
         }
+        if let Some(s) = r.weekly_sonnet_usage.as_ref() {
+            if let Ok(v) = serde_json::from_str::<UsageBreakdown>(s) {
+                c.weekly_sonnet_usage = v;
+            }
+        }
         if let Some(s) = r.weekly_opus_usage.as_ref() {
             if let Ok(v) = serde_json::from_str::<UsageBreakdown>(s) {
                 c.weekly_opus_usage = v;
@@ -499,6 +509,11 @@ pub async fn load_all_cookies()
         if let Some(s) = r.weekly_usage.as_ref() {
             if let Ok(v) = serde_json::from_str::<UsageBreakdown>(s) {
                 c.weekly_usage = v;
+            }
+        }
+        if let Some(s) = r.weekly_sonnet_usage.as_ref() {
+            if let Ok(v) = serde_json::from_str::<UsageBreakdown>(s) {
+                c.weekly_sonnet_usage = v;
             }
         }
         if let Some(s) = r.weekly_opus_usage.as_ref() {

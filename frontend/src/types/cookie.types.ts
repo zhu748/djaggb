@@ -16,16 +16,19 @@ export interface CookieStatus {
   // New usage buckets
   session_usage?: UsageBreakdown;
   weekly_usage?: UsageBreakdown;
+  weekly_sonnet_usage?: UsageBreakdown;
   weekly_opus_usage?: UsageBreakdown;
   lifetime_usage?: UsageBreakdown;
   // Ephemeral quota utilizations (percent), attached by /api/cookies only
   session_utilization?: number;
   seven_day_utilization?: number;
   seven_day_opus_utilization?: number;
+  seven_day_sonnet_utilization?: number;
   // Resets at timestamps (ISO8601), attached by /api/cookies only
   session_resets_at?: string | null;
   seven_day_resets_at?: string | null;
   seven_day_opus_resets_at?: string | null;
+  seven_day_sonnet_resets_at?: string | null;
 }
 
 export interface UselessCookie {

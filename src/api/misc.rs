@@ -474,7 +474,7 @@ pub async fn api_auth(AuthBearer(t): AuthBearer) -> StatusCode {
     StatusCode::OK
 }
 
-const MODEL_LIST: [&str; 10] = [
+const MODEL_LIST: [&str; 14] = [
     "claude-3-7-sonnet-20250219",
     "claude-3-7-sonnet-20250219-thinking",
     "claude-sonnet-4-20250514",
@@ -485,6 +485,10 @@ const MODEL_LIST: [&str; 10] = [
     "claude-opus-4-20250514-thinking",
     "claude-opus-4-1-20250805",
     "claude-opus-4-1-20250805-thinking",
+    "claude-opus-4-5-20251101",
+    "claude-opus-4-5-20251101-thinking",
+    "claude-opus-4-5",
+    "claude-opus-4-5-thinking",
 ];
 
 /// API endpoint to get the list of available models
@@ -527,6 +531,8 @@ async fn augment_utilization(cookies: Vec<CookieStatus>, handle: CookieActorHand
                     seven_reset,
                     seven_day_opus,
                     opus_reset,
+                    seven_day_sonnet,
+                    sonnet_reset,
                 )) => {
                     let mut obj = base;
                     obj["session_utilization"] = json!(five_hour);
@@ -535,6 +541,8 @@ async fn augment_utilization(cookies: Vec<CookieStatus>, handle: CookieActorHand
                     obj["seven_day_resets_at"] = json!(seven_reset);
                     obj["seven_day_opus_utilization"] = json!(seven_day_opus);
                     obj["seven_day_opus_resets_at"] = json!(opus_reset);
+                    obj["seven_day_sonnet_utilization"] = json!(seven_day_sonnet);
+                    obj["seven_day_sonnet_resets_at"] = json!(sonnet_reset);
                     obj
                 }
                 None => base,
@@ -550,6 +558,8 @@ async fn fetch_usage_percent(
     cookie: CookieStatus,
     handle: CookieActorHandle,
 ) -> Option<(
+    u32,
+    Option<String>,
     u32,
     Option<String>,
     u32,
@@ -593,5 +603,25 @@ async fn fetch_usage_percent(
         .and_then(|o| o.get("resets_at"))
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
-    Some((five, five_reset, seven, seven_reset, seven_opus, opus_reset))
+    let seven_sonnet = usage
+        .get("seven_day_sonnet")
+        .and_then(|o| o.get("utilization"))
+        .and_then(|v| v.as_f64())
+        .map(|v| v.round() as u32)
+        .unwrap_or(0);
+    let sonnet_reset = usage
+        .get("seven_day_sonnet")
+        .and_then(|o| o.get("resets_at"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    Some((
+        five,
+        five_reset,
+        seven,
+        seven_reset,
+        seven_opus,
+        opus_reset,
+        seven_sonnet,
+        sonnet_reset,
+    ))
 }

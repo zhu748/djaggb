@@ -58,6 +58,8 @@ pub mod entity_cookie {
         #[sea_orm(nullable)]
         pub weekly_usage: Option<String>,
         #[sea_orm(nullable)]
+        pub weekly_sonnet_usage: Option<String>,
+        #[sea_orm(nullable)]
         pub weekly_opus_usage: Option<String>,
         #[sea_orm(nullable)]
         pub lifetime_usage: Option<String>,

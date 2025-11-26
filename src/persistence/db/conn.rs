@@ -112,6 +112,7 @@ async fn migrate(db: &DatabaseConnection) -> Result<(), ClewdrError> {
         .add_column(ColumnDef::new(ColumnCookie::LifetimeUsage).string().null())
         .add_column(ColumnDef::new(ColumnCookie::SessionUsage).string().null())
         .add_column(ColumnDef::new(ColumnCookie::WeeklyUsage).string().null())
+        .add_column(ColumnDef::new(ColumnCookie::WeeklySonnetUsage).string().null())
         .add_column(
             ColumnDef::new(ColumnCookie::WeeklyOpusUsage)
                 .string()

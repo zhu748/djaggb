@@ -1,10 +1,4 @@
 # Release Notes
 
-## Bug Fixes
-
-- Fix auto-update GitHub release lookup by stripping email from author metadata so the GitHub API URL points to the right repo
-- Correct Android-only function call in `build.rs` so Android builds compile again
-
-## Maintenance
-
-- Update Cargo and frontend npm/pnpm dependencies to latest compatible versions
+## Fix bug
+- Fix Claude Code usage counters not resetting to zero when session/7-day cooldown windows expire without a new request (session, weekly, Opus, Sonnet buckets now clear on periodic checks).
