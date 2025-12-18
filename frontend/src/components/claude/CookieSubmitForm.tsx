@@ -66,8 +66,6 @@ const CookieSubmitForm: React.FC = () => {
           translatedError = t("cookieSubmit.error.auth");
         } else if (errorMessage.includes("Server error")) {
           translatedError = t("cookieSubmit.error.server");
-        } else if (errorMessage.includes("Database storage is unavailable")) {
-          translatedError = t("cookieSubmit.error.storage");
         }
 
         newResults.push({

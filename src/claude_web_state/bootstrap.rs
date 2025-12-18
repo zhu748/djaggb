@@ -75,7 +75,7 @@ impl ClaudeWebState {
             })
             .unwrap_or_default();
         if !self.is_pro() && CLEWDR_CONFIG.load().skip_non_pro {
-            return Err(Reason::NonPro.into());
+            return Err(Reason::Free.into());
         }
         let mut w = String::new();
         writeln!(

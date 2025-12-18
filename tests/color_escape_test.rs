@@ -26,7 +26,7 @@ mod tests {
         let test_cases = vec![
             (Reason::NormalPro, "Normal Pro account"),
             (Reason::Disabled, "Organization Disabled"),
-            (Reason::NonPro, "Free account"),
+            (Reason::Free, "Free account"),
             (Reason::Banned, "Banned"),
             (Reason::Null, "Null"),
             (Reason::Restricted(1735689600), "Restricted/Warning"),

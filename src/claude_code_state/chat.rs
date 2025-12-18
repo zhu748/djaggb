@@ -648,9 +648,7 @@ impl ClaudeCodeState {
         }
 
         cookie.resets_last_checked_at = Some(now);
-        if let Some((sess, week, opus, sonnet)) =
-            Self::fetch_usage_resets(cookie, handle).await
-        {
+        if let Some((sess, week, opus, sonnet)) = Self::fetch_usage_resets(cookie, handle).await {
             // Unknown -> decide track/not-track
             if unknown(cookie.session_has_reset) {
                 cookie.session_has_reset = Some(sess.is_some());

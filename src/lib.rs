@@ -10,9 +10,7 @@ pub mod claude_code_state;
 pub mod claude_web_state;
 pub mod config;
 pub mod error;
-pub mod gemini_state;
 pub mod middleware;
-pub mod persistence;
 pub mod providers;
 pub mod router;
 pub mod services;
@@ -69,7 +67,7 @@ pub const FIG: &str = r#"
 ((____/ / // ((____   ((__( (__/ / ((___/ / //    | |    
 "#;
 
-/// Reverse Proxy API for Claude and Gemini
+/// Reverse Proxy API for Claude
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Args {

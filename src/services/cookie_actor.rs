@@ -8,16 +8,8 @@ use snafu::{GenerateImplicitData, Location};
 use tracing::{error, info, warn};
 
 use crate::{
-    config::{
-        CLEWDR_CONFIG,
-        ClewdrConfig,
-        CookieStatus,
-        Reason,
-        UsageBreakdown,
-        UselessCookie,
-    },
+    config::{CLEWDR_CONFIG, ClewdrConfig, CookieStatus, Reason, UsageBreakdown, UselessCookie},
     error::ClewdrError,
-    persistence::StorageLayer,
 };
 
 const INTERVAL: u64 = 300;
@@ -58,9 +50,7 @@ struct CookieActorState {
 }
 
 /// Cookie actor that handles cookie distribution, collection, and status tracking using Ractor
-struct CookieActor {
-    storage: &'static dyn StorageLayer,
-}
+struct CookieActor;
 
 impl CookieActor {
     /// Saves the current state of cookies to the configuration
@@ -98,7 +88,7 @@ impl CookieActor {
     }
 
     /// Checks and resets cookies that have passed their reset time
-    fn reset(state: &mut CookieActorState, storage: &'static dyn StorageLayer) {
+    fn reset(state: &mut CookieActorState) {
         let mut reset_cookies = Vec::new();
         state.exhausted.retain(|cookie| {
             let reset_cookie = cookie.clone().reset();
@@ -115,11 +105,6 @@ impl CookieActor {
         // 将重置的 cookies 放回 valid，并进行增量 upsert
         for c in reset_cookies.into_iter() {
             state.valid.push_back(c.clone());
-            if storage.is_enabled() {
-                tokio::spawn(async move {
-                    let _ = storage.persist_cookie_upsert(&c).await;
-                });
-            }
         }
         Self::log(state);
     }
@@ -199,7 +184,7 @@ impl CookieActor {
         state: &mut CookieActorState,
         hash: Option<u64>,
     ) -> Result<CookieStatus, ClewdrError> {
-        Self::reset(state, self.storage);
+        Self::reset(state);
         if let Some(hash) = hash
             && let Some(cookie) = state.moka.get(&hash)
             && let Some(cookie) = state.valid.iter().find(|&c| c == &cookie)
@@ -251,7 +236,7 @@ impl CookieActor {
                     return;
                 }
             }
-            Reason::NonPro => {
+            Reason::Free => {
                 find_remove(&cookie);
                 let mut removed = cookie.clone();
                 removed.reset_window_usage();
@@ -378,47 +363,17 @@ impl Actor for CookieActor {
     ) -> Result<(), ActorProcessingErr> {
         match message {
             CookieActorMessage::Return(cookie, reason) => {
-                let orig = cookie.clone();
-                let r = reason.clone();
                 Self::collect(state, cookie, reason);
-                let storage = self.storage;
-                if storage.is_enabled() {
-                    tokio::spawn(async move {
-                        match r {
-                            None => {
-                                let _ = storage.persist_cookie_upsert(&orig).await;
-                            }
-                            Some(Reason::TooManyRequest(ts)) | Some(Reason::Restricted(ts)) => {
-                                let mut c = orig.clone();
-                                c.reset_time = Some(ts);
-                                let _ = storage.persist_cookie_upsert(&c).await;
-                            }
-                            Some(reason) => {
-                                let u = UselessCookie::new(orig.cookie.clone(), reason);
-                                let _ = storage.persist_wasted_upsert(&u).await;
-                            }
-                        }
-                    });
-                }
             }
             CookieActorMessage::Submit(cookie) => {
-                let c = cookie.clone();
                 Self::accept(state, cookie);
-                let storage = self.storage;
-                if storage.is_enabled() {
-                    tokio::spawn(async move {
-                        if let Err(e) = storage.persist_cookie_upsert(&c).await {
-                            error!("Failed to upsert cookie: {}", e);
-                        }
-                    });
-                }
             }
             CookieActorMessage::CheckReset => {
                 let changed = Self::refresh_usage_windows(state);
                 if changed {
                     Self::save(state);
                 }
-                Self::reset(state, self.storage);
+                Self::reset(state);
             }
             CookieActorMessage::Request(cache_hash, reply_port) => {
                 let result = self.dispatch(state, cache_hash);
@@ -433,17 +388,8 @@ impl Actor for CookieActor {
                 reply_port.send(status_info)?;
             }
             CookieActorMessage::Delete(cookie, reply_port) => {
-                let storage = self.storage;
                 let result = Self::delete(state, cookie.clone());
-                let should_cleanup = result.is_ok() && storage.is_enabled();
                 reply_port.send(result)?;
-                if should_cleanup {
-                    tokio::spawn(async move {
-                        if let Err(e) = storage.delete_cookie_row(&cookie).await {
-                            error!("Failed to delete cookie row: {}", e);
-                        }
-                    });
-                }
             }
         }
         Ok(())
@@ -468,14 +414,7 @@ pub struct CookieActorHandle {
 impl CookieActorHandle {
     /// Create a new CookieActor and return a handle to it
     pub async fn start() -> Result<Self, ractor::SpawnErr> {
-        Self::start_with_storage(crate::persistence::storage()).await
-    }
-
-    /// Create a new CookieActor with injected storage layer
-    pub async fn start_with_storage(
-        storage: &'static dyn StorageLayer,
-    ) -> Result<Self, ractor::SpawnErr> {
-        let (actor_ref, _join_handle) = Actor::spawn(None, CookieActor { storage }, ()).await?;
+        let (actor_ref, _join_handle) = Actor::spawn(None, CookieActor, ()).await?;
 
         // Start the timeout checker
         let handle = Self {

@@ -13,7 +13,7 @@ use crate::config::ClewdrCookie;
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Error)]
 pub enum Reason {
     NormalPro,
-    NonPro,
+    Free,
     Disabled,
     Banned,
     Null,
@@ -31,7 +31,7 @@ impl Display for Reason {
         match self {
             Reason::NormalPro => write!(f, "Normal Pro account"),
             Reason::Disabled => write!(f, "Organization Disabled"),
-            Reason::NonPro => write!(f, "Free account"),
+            Reason::Free => write!(f, "Free account"),
             Reason::Banned => write!(f, "Banned"),
             Reason::Null => write!(f, "Null"),
             Reason::Restricted(i) => {

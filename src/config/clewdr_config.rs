@@ -1,6 +1,5 @@
 use std::{
     collections::HashSet,
-    env,
     fmt::{Debug, Display},
     net::{IpAddr, SocketAddr},
 };
@@ -18,9 +17,8 @@ use serde::{Deserialize, Serialize};
 use tokio::spawn;
 use tracing::error;
 use wreq::{Proxy, Url};
-use yup_oauth2::ServiceAccountKey;
 
-use super::{CONFIG_PATH, ENDPOINT_URL, key::KeyStatus};
+use super::{CONFIG_PATH, ENDPOINT_URL};
 use crate::{
     Args,
     config::{
@@ -52,74 +50,14 @@ fn generate_password() -> String {
     pg.generate_one().unwrap()
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-pub struct VertexConfig {
-    #[serde(default)]
-    pub credential: Option<ServiceAccountKey>,
-    #[serde(default)]
-    pub credentials: Vec<ServiceAccountKey>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
-#[serde(rename_all = "lowercase")]
-pub enum PersistenceMode {
-    #[default]
-    File,
-    Sqlite,
-    Postgres,
-    Mysql,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
-pub struct PersistenceConfig {
-    /// file | sqlite | postgres
-    #[serde(default)]
-    pub mode: PersistenceMode,
-    /// Preferred database URL. Examples:
-    /// - sqlite:///etc/clewdr/clewdr.db
-    /// - postgres://user:pass@host:5432/db
-    /// - mysql://user:pass@host:3306/db
-    #[serde(default)]
-    pub database_url: Option<String>,
-    /// Shortcut for sqlite path when database_url is not provided
-    #[serde(default)]
-    pub sqlite_path: Option<String>,
-}
-
-impl VertexConfig {
-    pub fn validate(&self) -> bool {
-        !self.credential_list().is_empty()
-    }
-
-    pub fn credential_list(&self) -> Vec<ServiceAccountKey> {
-        let mut list = self.credentials.clone();
-        if let Some(single) = &self.credential
-            && !list
-                .iter()
-                .any(|cred| cred.client_email == single.client_email)
-        {
-            list.push(single.clone());
-        }
-        list
-    }
-}
-
 /// A struct representing the configuration of the application
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ClewdrConfig {
     // key configurations
     #[serde(default)]
-    pub vertex: VertexConfig,
-    #[serde(default)]
     pub cookie_array: HashSet<CookieStatus>,
     #[serde(default)]
     pub wasted_cookie: HashSet<UselessCookie>,
-    #[serde(default)]
-    pub gemini_keys: HashSet<KeyStatus>,
-
-    // Persistence settings
-    #[serde(default)]
-    pub persistence: PersistenceConfig,
 
     // Server settings, cannot hot reload
     #[serde(default = "default_ip")]
@@ -195,14 +133,11 @@ pub struct ClewdrConfig {
 impl Default for ClewdrConfig {
     fn default() -> Self {
         Self {
-            vertex: Default::default(),
             max_retries: default_max_retries(),
             check_update: default_check_update(),
             auto_update: false,
             cookie_array: HashSet::new(),
             wasted_cookie: HashSet::new(),
-            gemini_keys: HashSet::new(),
-            persistence: Default::default(),
             password: String::new(),
             admin_password: String::new(),
             proxy: None,
@@ -250,19 +185,13 @@ impl Display for ClewdrConfig {
             .map_err(|_| std::fmt::Error)?;
         write!(
             f,
-            "Claude(Claude and OpenAI format) / Gemini(Gemini format) Endpoint: {}\n\
+            "Claude(Claude and OpenAI format) Endpoint: {}\n\
             Claude Code(Claude and OpenAI format) Endpoint: {}\n\
-            Vertex(Gemini format) Endpoint: {}\n\
-            Gemini(OpenAI format) Endpoint: {}\n\
-            Vertex(OpenAI format) Endpoint: {}\n\
             API Password: {}\n\
             Web Admin Endpoint: {}\n\
             Web Admin Password: {}\n",
             api_url.to_string().green().underline(),
             (web_url.to_string() + "code/v1").green().underline(),
-            (api_url.to_string() + "/vertex").green().underline(),
-            (web_url.to_string() + "gemini").green().underline(),
-            (web_url.to_string() + "gemini/vertex").green().underline(),
             self.password.yellow(),
             web_url.to_string().green().underline(),
             self.admin_password.yellow(),
@@ -273,10 +202,7 @@ impl Display for ClewdrConfig {
         if let Some(ref rproxy) = self.rproxy {
             writeln!(f, "Reverse Proxy: {}", rproxy.to_string().blue())?;
         }
-        if self.vertex.validate() {
-            writeln!(f, "Vertex {}", "Enabled".green().bold())?;
-        }
-        writeln!(f, "Skip non Pro: {}", enabled(self.skip_non_pro))?;
+        writeln!(f, "Skip Free: {}", enabled(self.skip_non_pro))?;
         writeln!(f, "Skip restricted: {}", enabled(self.skip_restricted))?;
         writeln!(
             f,
@@ -295,62 +221,11 @@ impl Display for ClewdrConfig {
             "Web count_tokens: {}",
             enabled(self.enable_web_count_tokens)
         )?;
-        match self.persistence.mode {
-            PersistenceMode::File => writeln!(f, "Persistence: file")?,
-            PersistenceMode::Sqlite => writeln!(
-                f,
-                "Persistence: sqlite{}",
-                self.persistence.sqlite_path.as_deref().unwrap_or("").blue()
-            )?,
-            PersistenceMode::Postgres => writeln!(
-                f,
-                "Persistence: postgres ({})",
-                self.persistence
-                    .database_url
-                    .as_deref()
-                    .unwrap_or("env: CLEWDR_PERSISTENCE__DATABASE_URL")
-                    .blue()
-            )?,
-            PersistenceMode::Mysql => writeln!(
-                f,
-                "Persistence: mysql ({})",
-                self.persistence
-                    .database_url
-                    .as_deref()
-                    .unwrap_or("env: CLEWDR_PERSISTENCE__DATABASE_URL")
-                    .blue()
-            )?,
-        }
         Ok(())
     }
 }
 
 impl ClewdrConfig {
-    pub fn is_db_mode(&self) -> bool {
-        matches!(
-            self.persistence.mode,
-            PersistenceMode::Sqlite | PersistenceMode::Postgres | PersistenceMode::Mysql
-        )
-    }
-
-    pub fn database_url(&self) -> Option<String> {
-        if let Some(url) = &self.persistence.database_url {
-            return Some(url.to_owned());
-        }
-        match self.persistence.mode {
-            PersistenceMode::Sqlite => {
-                if let Some(path) = &self.persistence.sqlite_path {
-                    // Ensure read-write-create mode for sqlite files
-                    return Some(format!("sqlite://{}?mode=rwc", path));
-                }
-                // default sqlite path oriented for container persistence
-                Some("sqlite:///etc/clewdr/clewdr.db?mode=rwc".to_string())
-            }
-            PersistenceMode::Postgres => None,
-            PersistenceMode::Mysql => None,
-            PersistenceMode::File => None,
-        }
-    }
     pub fn user_auth(&self, key: &str) -> bool {
         key == self.password
     }
@@ -374,7 +249,7 @@ impl ClewdrConfig {
     /// * Config instance
     pub fn new() -> Self {
         // Load config from TOML then override with environment variables.
-        // Use double underscore "__" to map nested keys, e.g. CLEWDR_PERSISTENCE__MODE=postgres
+        // Use double underscore "__" to map nested keys.
         let mut config: ClewdrConfig = Figment::from(Toml::file(CONFIG_PATH.as_path()))
             .admerge(Env::prefixed("CLEWDR_").split("__"))
             .extract_lossy()
@@ -382,13 +257,6 @@ impl ClewdrConfig {
                 error!("Failed to load config: {}", e);
             })
             .unwrap_or_default();
-        if let Some(credential) = env::var("CLEWDR_VERTEX_CREDENTIAL").ok().and_then(|v| {
-            serde_json::from_str::<ServiceAccountKey>(&v)
-                .map_err(|e| error!("Failed to parse vertex credential: {}", e))
-                .ok()
-        }) {
-            config.vertex.credential = Some(credential);
-        }
         if let Some(ref f) = Args::try_parse().ok().and_then(|a| a.file) {
             // load cookies from file
             if f.exists() {
@@ -405,7 +273,7 @@ impl ClewdrConfig {
             }
         }
         let config = config.validate();
-        if !config.is_db_mode() {
+        if !config.no_fs {
             let config_clone = config.to_owned();
             spawn(async move {
                 config_clone.save().await.unwrap_or_else(|e| {
@@ -435,10 +303,6 @@ impl ClewdrConfig {
 
     /// Save the configuration to a file
     pub async fn save(&self) -> Result<(), ClewdrError> {
-        // If DB feature compiled and DB mode enabled, persist to DB; otherwise write to file
-        if crate::persistence::storage().is_enabled() {
-            return crate::persistence::storage().persist_config(self).await;
-        }
         if self.no_fs {
             return Ok(());
         }
@@ -467,15 +331,6 @@ impl ClewdrConfig {
                 })
                 .ok()
         });
-        let mut seen = HashSet::new();
-        let mut credentials = Vec::new();
-        for cred in self.vertex.credential_list() {
-            if seen.insert(cred.client_email.clone()) {
-                credentials.push(cred);
-            }
-        }
-        self.vertex.credentials = credentials;
-        self.vertex.credential = None;
         self
     }
 }

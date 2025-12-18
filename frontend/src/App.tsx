@@ -9,7 +9,6 @@ import AuthGatekeeper from "./components/auth/AuthGatekeeper";
 import LogoutPanel from "./components/auth/LogoutPanel";
 import ClaudeTabs from "./components/claude";
 import ConfigTab from "./components/config";
-import GeminiTabs from "./components/gemini";
 import StatusMessage from "./components/common/StatusMessage";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import { useAppContext } from "./context/AppContext";
@@ -50,7 +49,6 @@ function App() {
   // Define tabs for the authenticated user
   const tabs = [
     { id: "claude", label: t("tabs.claude"), color: "cyan" },
-    { id: "gemini", label: t("tabs.gemini"), color: "purple" },
     { id: "config", label: t("tabs.config"), color: "green" },
     { id: "token", label: t("tabs.auth"), color: "violet" },
   ];
@@ -73,8 +71,6 @@ function App() {
                 <ClaudeTabs />
               ) : activeTab === "config" ? (
                 <ConfigTab />
-              ) : activeTab === "gemini" ? (
-                <GeminiTabs />
               ) : (
                 <LogoutPanel onLogout={handleLogout} />
               )}

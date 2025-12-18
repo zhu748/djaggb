@@ -63,9 +63,6 @@ pub enum ClewdrError {
         uri: String,
         source: http::uri::InvalidUri,
     },
-    #[snafu(display("YuOAuth2 error: {}", source))]
-    #[snafu(context(false))]
-    YuOAuth2Error { source: yup_oauth2::Error },
     #[snafu(display("Empty choices"))]
     EmptyChoices,
     #[snafu(display("JSON error: {}", source))]
@@ -116,8 +113,6 @@ pub enum ClewdrError {
     CookieDispatchError { source: oneshot::error::RecvError },
     #[snafu(display("No cookie available"))]
     NoCookieAvailable,
-    #[snafu(display("No key available"))]
-    NoKeyAvailable,
     #[snafu(display("Invalid Cookie: {}", reason))]
     #[snafu(context(false))]
     InvalidCookie {
@@ -148,8 +143,6 @@ pub enum ClewdrError {
         code: StatusCode,
         inner: ClaudeErrorBody,
     },
-    #[snafu(display("Http error: code: {}, body: {}", code.to_string().red(), serde_json::to_string_pretty(&inner).unwrap_or_default()))]
-    GeminiHttpError { code: StatusCode, inner: Value },
     #[snafu(display("Unexpected None: {}", msg))]
     UnexpectedNone { msg: &'static str },
     #[snafu(display("IO error: {}", source))]
@@ -188,9 +181,6 @@ impl IntoResponse for ClewdrError {
                 (StatusCode::BAD_REQUEST, json!(self.to_string()))
             }
             ClewdrError::InvalidUri { .. } => (StatusCode::BAD_REQUEST, json!(self.to_string())),
-            ClewdrError::YuOAuth2Error { .. } => {
-                (StatusCode::UNAUTHORIZED, json!(self.to_string()))
-            }
             ClewdrError::PathRejection { ref source } => {
                 (source.status(), json!(source.body_text()))
             }
@@ -199,9 +189,6 @@ impl IntoResponse for ClewdrError {
             }
             ClewdrError::ClaudeHttpError { code, inner } => {
                 return (code, Json(ClaudeError { error: inner })).into_response();
-            }
-            ClewdrError::GeminiHttpError { code, inner } => {
-                return (code, Json(inner)).into_response();
             }
             ClewdrError::TestMessage => {
                 return (
@@ -294,52 +281,6 @@ where
     Self: Sized,
 {
     fn check_claude(self) -> impl Future<Output = Result<Self, ClewdrError>>;
-}
-
-pub trait CheckGeminiErr
-where
-    Self: Sized,
-{
-    fn check_gemini(self) -> impl Future<Output = Result<Self, ClewdrError>>;
-}
-
-impl CheckGeminiErr for Response {
-    async fn check_gemini(self) -> Result<Self, ClewdrError> {
-        let status = self.status();
-        if status.is_success() {
-            return Ok(self);
-        }
-        // else just return OtherHttpError
-        let text = match self.text().await {
-            Ok(text) => text,
-            Err(err) => {
-                let error = json!({
-                    "message": err.to_string(),
-                    "status": "error_get_error_body",
-                    "code": status.as_u16()
-                });
-                return Err(ClewdrError::GeminiHttpError {
-                    code: status,
-                    inner: error,
-                });
-            }
-        };
-        let Ok(error) = serde_json::from_str::<Value>(&text) else {
-            let error = json!({
-                "message": format!("Unknown error: {}", text),
-                "status": "error_parse_error_body",
-                "code": Some(status.as_u16()),
-            });
-            return Err(ClewdrError::GeminiHttpError {
-                code: status,
-                inner: error,
-            });
-        };
-        Err(ClewdrError::GeminiHttpError {
-            code: status,
-            inner: error,
-        })
-    }
 }
 
 impl CheckClaudeErr for Response {

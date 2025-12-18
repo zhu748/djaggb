@@ -244,9 +244,39 @@ pub struct ImageUrl {
     pub url: String,
 }
 
-/// Tool definition
+/// Cache control breakpoint configuration.
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Tool {
+pub struct CacheControlEphemeral {
+    #[serde(rename = "type")]
+    pub type_: CacheControlType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ttl: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CacheControlType {
+    #[serde(rename = "ephemeral")]
+    Ephemeral,
+}
+
+/// Tool definition
+///
+/// Claude `tools` is a union type: it can include custom tools (which have an
+/// `input_schema`) and built-in tools (e.g. Claude Code tools) that do not.
+///
+/// This models the documented tool variants and preserves unknown tool shapes
+/// for pass-through.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum Tool {
+    Custom(CustomTool),
+    Known(KnownTool),
+    Raw(serde_json::Value),
+}
+
+/// Custom tool definition (requires `input_schema`)
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CustomTool {
     /// Name of the tool
     pub name: String,
     /// Description of the tool
@@ -254,6 +284,117 @@ pub struct Tool {
     pub description: Option<String>,
     /// JSON schema for tool input
     pub input_schema: serde_json::Value,
+    /// Optional cache control breakpoint for this tool definition
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cache_control: Option<CacheControlEphemeral>,
+    /// Optional tool type marker
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub type_: Option<CustomToolType>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CustomToolType {
+    #[serde(rename = "custom")]
+    Custom,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(tag = "type")]
+pub enum KnownTool {
+    #[serde(rename = "bash_20250124")]
+    Bash20250124 {
+        name: ToolNameBash,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        cache_control: Option<CacheControlEphemeral>,
+        #[serde(flatten)]
+        extra: std::collections::HashMap<String, serde_json::Value>,
+    },
+    #[serde(rename = "text_editor_20250124")]
+    TextEditor20250124 {
+        name: ToolNameStrReplaceEditor,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        cache_control: Option<CacheControlEphemeral>,
+        #[serde(flatten)]
+        extra: std::collections::HashMap<String, serde_json::Value>,
+    },
+    #[serde(rename = "text_editor_20250429")]
+    TextEditor20250429 {
+        name: ToolNameStrReplaceBasedEditTool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        cache_control: Option<CacheControlEphemeral>,
+        #[serde(flatten)]
+        extra: std::collections::HashMap<String, serde_json::Value>,
+    },
+    #[serde(rename = "text_editor_20250728")]
+    TextEditor20250728 {
+        name: ToolNameStrReplaceBasedEditTool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        cache_control: Option<CacheControlEphemeral>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        max_characters: Option<u32>,
+        #[serde(flatten)]
+        extra: std::collections::HashMap<String, serde_json::Value>,
+    },
+    #[serde(rename = "web_search_20250305")]
+    WebSearch20250305 {
+        name: ToolNameWebSearch,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        allowed_domains: Option<Vec<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        blocked_domains: Option<Vec<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        cache_control: Option<CacheControlEphemeral>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        max_uses: Option<u32>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        user_location: Option<WebSearchUserLocation>,
+        #[serde(flatten)]
+        extra: std::collections::HashMap<String, serde_json::Value>,
+    },
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ToolNameBash {
+    #[serde(rename = "bash")]
+    Bash,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ToolNameStrReplaceEditor {
+    #[serde(rename = "str_replace_editor")]
+    StrReplaceEditor,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ToolNameStrReplaceBasedEditTool {
+    #[serde(rename = "str_replace_based_edit_tool")]
+    StrReplaceBasedEditTool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ToolNameWebSearch {
+    #[serde(rename = "web_search")]
+    WebSearch,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct WebSearchUserLocation {
+    #[serde(rename = "type")]
+    pub type_: WebSearchUserLocationType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub region: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timezone: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum WebSearchUserLocationType {
+    #[serde(rename = "approximate")]
+    Approximate,
 }
 
 /// Tool choice configuration
@@ -262,13 +403,26 @@ pub struct Tool {
 pub enum ToolChoice {
     /// Let model choose whether to use tools
     #[serde(rename = "auto")]
-    Auto,
+    Auto {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        disable_parallel_tool_use: Option<bool>,
+    },
     /// Model must use one of the provided tools
     #[serde(rename = "any")]
-    Any,
+    Any {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        disable_parallel_tool_use: Option<bool>,
+    },
     /// Model must use a specific tool
     #[serde(rename = "tool")]
-    Tool { name: String },
+    Tool {
+        name: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        disable_parallel_tool_use: Option<bool>,
+    },
+    /// Model will not be allowed to use tools
+    #[serde(rename = "none")]
+    None,
 }
 
 /// Message metadata
@@ -484,4 +638,35 @@ pub struct StreamError {
     #[serde(rename = "type")]
     pub type_: String,
     pub message: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn deserializes_claude_code_builtin_tools_without_input_schema() {
+        let body = json!({
+            "max_tokens": 1024,
+            "messages": [
+                { "role": "user", "content": "hi" }
+            ],
+            "model": "claude-sonnet-4-5-20250929",
+            "tools": [
+                { "name": "bash", "type": "bash_20250124" },
+                { "name": "str_replace_editor", "type": "text_editor_20250124" }
+            ],
+            "tool_choice": { "type": "auto", "disable_parallel_tool_use": false }
+        });
+
+        let params: CreateMessageParams = serde_json::from_value(body).unwrap();
+        let tools = params.tools.as_ref().expect("tools should be present");
+        assert_eq!(tools.len(), 2);
+
+        // Ensure we preserve the tool union objects when re-serializing.
+        let reserialized = serde_json::to_value(&params).unwrap();
+        assert_eq!(reserialized["tools"][0]["type"], "bash_20250124");
+        assert_eq!(reserialized["tools"][1]["type"], "text_editor_20250124");
+    }
 }

@@ -4,30 +4,27 @@
   <img src="./assets/clewdr-logo.svg" alt="ClewdR" height="60">
 </p>
 
-ClewdR is a Rust proxy for Claude (Claude.ai, Claude Code) and Google Gemini (AI Studio, Vertex AI).  
-It keeps resource usage low, serves OpenAI-style endpoints, and ships with a small React admin UI for managing cookies, keys, and settings.
+ClewdR is a Rust proxy for Claude (Claude.ai, Claude Code).  
+It keeps resource usage low, serves OpenAI-style endpoints, and ships with a small React admin UI for managing cookies and settings.
 
 ---
 
 ## Highlights
 
-- Works with Claude web, Claude Code, Gemini AI Studio, and Vertex AI.
+- Works with Claude web and Claude Code.
 - Single static binary for Linux, macOS, Windows, and Android; Docker image available.
-- Web dashboard shows live status, exposes cookie/key editors, and supports hot config reloads.
-- Drops into existing OpenAI-compatible clients while keeping native Claude/Gemini formats.
-- Optional SQLite/Postgres/MySQL persistence; default `clewdr.toml` file mode still available.
+- Web dashboard shows live status and supports hot config reloads.
+- Drops into existing OpenAI-compatible clients while keeping native Claude formats.
 - Typical production footprint: `<10 MB` RAM, `<1 s` startup, `~15 MB` binary.
 
 ## Supported Endpoints
 
 | Service | Endpoint |
 |---------|----------|
-| Claude native | `http://127.0.0.1:8484/v1/messages` |
-| Claude OpenAI compatible | `http://127.0.0.1:8484/v1/chat/completions` |
+| Claude.ai | `http://127.0.0.1:8484/v1/messages` |
+| Claude.ai OpenAI compatible | `http://127.0.0.1:8484/v1/chat/completions` |
 | Claude Code | `http://127.0.0.1:8484/code/v1/messages` |
-| Gemini native | `http://127.0.0.1:8484/v1/v1beta/generateContent` |
-| Gemini OpenAI compatible | `http://127.0.0.1:8484/gemini/chat/completions` |
-| Vertex AI proxy | `http://127.0.0.1:8484/v1/vertex/v1beta/` |
+| Claude Code OpenAI compatible | `http://127.0.0.1:8484/code/v1/chat/completions` |
 
 Streaming responses work on every endpoint.
 
@@ -50,7 +47,6 @@ Streaming responses work on every endpoint.
 
 - `Dashboard` shows health, connected clients, and rate-limit status.
 - `Claude` tab stores browser cookies; paste `cookie: value` pairs and save.
-- `Gemini` tab accepts AI Studio keys and optional Vertex OAuth credentials.
 - `Settings` lets you rotate the admin password, set upstream proxies, and reload config without restarting.
 
 If you forget the password, delete `clewdr.toml` and start the binary again. Docker users can mount a persistent folder for that file.
@@ -62,12 +58,6 @@ If you forget the password, delete `clewdr.toml` and start the binary again. Doc
 1. Export your Claude.ai cookies (e.g., via browser devtools).  
 2. Paste them into the Claude tab; ClewdR tracks their status automatically.  
 3. Optionally set an outbound proxy or fingerprint overrides if Claude blocks your region.
-
-### Gemini
-
-1. Add AI Studio API keys in the Gemini tab.  
-2. For Vertex AI, provide OAuth client ID/secret and project info.  
-3. Select default models or override them per request via the API.
 
 ## Client Examples
 
@@ -106,49 +96,9 @@ Cursor:
 }
 ```
 
-## Persistence Options
-
-ClewdR stores everything in `clewdr.toml` by default. To use a database instead, build with the matching feature flag and set `persistence.mode`.
-
-### Build with database features
-
-```bash
-cargo build --release --no-default-features --features "embed-resource,xdg,db-sqlite"
-```
-
-Available feature flags: `db-sqlite`, `db-postgres`, `db-mysql` (each pulls in the core `db` feature).  
-Custom Docker builds should pass the same flags during `cargo build`.
-
-### Configure the backend
-
-`clewdr.toml` example:
-
-```toml
-[persistence]
-mode = "postgres"                           # sqlite | postgres | mysql
-database_url = "postgres://user:pass@db:5432/clewdr"
-```
-
-- SQLite: optionally set `sqlite_path = "/var/lib/clewdr/clewdr.db"`. ClewdR expands it to `sqlite:///...` and creates the parent folder if possible.
-- Postgres/MySQL: `database_url` is required.
-- Environment variables use Figment’s double underscore style, for example:
-
-  ```bash
-  export CLEWDR_PERSISTENCE__MODE=sqlite
-  export CLEWDR_PERSISTENCE__SQLITE_PATH=/var/lib/clewdr/clewdr.db
-  export CLEWDR_PERSISTENCE__DATABASE_URL="postgres://user:pass@db/clewdr"
-  ```
-
-Operational notes:
-
-- On first run ClewdR applies SeaORM migrations for `config`, `cookies`, `keys`, and `wasted` tables.
-- `GET /api/storage/status` reports database health; writes fail if storage is unavailable.
-- Verify the running binary exposes DB support (`clewdr -V`) when switching from file mode.
-
 ## Resources
 
 - Wiki: <https://github.com/Xerxes-2/clewdr/wiki>  
-  - Database persistence guide (中文): `wiki/database.md`
 
 ## Thanks
 

@@ -3,12 +3,11 @@ export interface ConfigData {
   ip: string;
   port: number;
 
-  // Vertex settings
-  vertex: VertexConfig;
-
   // App settings
   check_update: boolean;
   auto_update: boolean;
+  no_fs?: boolean;
+  log_to_file?: boolean;
 
   // Network settings
   password: string;
@@ -35,45 +34,8 @@ export interface ConfigData {
   custom_h: string | null;
   custom_a: string | null;
   custom_prompt: string;
-
-  // Persistence
-  persistence?: PersistenceConfig;
-}
-
-export interface StorageStatusDetails {
-  driver?: string;
-  latency_ms?: number;
-  sqlite_path?: string;
-  database_url?: string;
-}
-
-export interface StorageStatus {
-  enabled?: boolean;
-  mode?: PersistenceMode;
-  healthy?: boolean;
-  details?: StorageStatusDetails;
-  last_write_ts?: number;
-  total_writes?: number;
-  avg_write_ms?: number;
-  failure_ratio?: number;
-  retry_count?: number;
-  write_error_count?: number;
-  error?: string;
-  last_error?: string;
-}
-
-interface VertexConfig {
-  credential?: string | null;
-  credentials?: { client_email: string }[];
-  [key: string]: unknown;
-}
-
-export type PersistenceMode = "file" | "sqlite" | "postgres";
-
-export interface PersistenceConfig {
-  mode: PersistenceMode;
-  database_url?: string | null;
-  sqlite_path?: string | null;
+  claude_code_client_id?: string | null;
+  custom_system?: string | null;
 }
 
 export interface ConfigState {

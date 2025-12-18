@@ -50,7 +50,7 @@ const CookieVisualization: React.FC = () => {
       // Cache info is available in response.cacheInfo for debugging
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      setError(translateError(message));
+      setError(message);
       setCookieStatus(emptyCookieStatus);
     } finally {
       setLoading(false);
@@ -62,22 +62,13 @@ const CookieVisualization: React.FC = () => {
     fetchCookieStatus();
   }, [fetchCookieStatus, refreshCounter]);
 
-  const handleRefresh = (
-    event?: React.MouseEvent<HTMLButtonElement>
-  ) => {
+  const handleRefresh = (event?: React.MouseEvent<HTMLButtonElement>) => {
     const forceRefresh = event ? event.ctrlKey || event.metaKey : false;
     if (forceRefresh) {
       fetchCookieStatus(true);
     } else {
       setRefreshCounter((prev) => prev + 1);
     }
-  };
-
-  const translateError = (message: string) => {
-    if (message.includes("Database storage is unavailable")) {
-      return t("common.dbUnavailable");
-    }
-    return message;
   };
 
   const getCooldownDisplay = (status: CookieItem) => {
@@ -121,15 +112,17 @@ const CookieVisualization: React.FC = () => {
 
     const groups: Array<{
       title: string;
-      b: Required<Pick<
-        typeof s,
-        | "total_input_tokens"
-        | "total_output_tokens"
-        | "sonnet_input_tokens"
-        | "sonnet_output_tokens"
-        | "opus_input_tokens"
-        | "opus_output_tokens"
-      >>;
+      b: Required<
+        Pick<
+          typeof s,
+          | "total_input_tokens"
+          | "total_output_tokens"
+          | "sonnet_input_tokens"
+          | "sonnet_output_tokens"
+          | "opus_input_tokens"
+          | "opus_output_tokens"
+        >
+      >;
       showSonnet: boolean;
       showOpus: boolean;
     }> = [];
@@ -161,7 +154,8 @@ const CookieVisualization: React.FC = () => {
       groups.push({
         title: t("cookieStatus.quota.session") as string,
         b: sReq,
-        showSonnet: sReq.sonnet_input_tokens > 0 || sReq.sonnet_output_tokens > 0,
+        showSonnet:
+          sReq.sonnet_input_tokens > 0 || sReq.sonnet_output_tokens > 0,
         showOpus: sReq.opus_input_tokens > 0 || sReq.opus_output_tokens > 0,
       });
     }
@@ -169,7 +163,8 @@ const CookieVisualization: React.FC = () => {
       groups.push({
         title: t("cookieStatus.quota.sevenDay") as string,
         b: wReq,
-        showSonnet: wReq.sonnet_input_tokens > 0 || wReq.sonnet_output_tokens > 0,
+        showSonnet:
+          wReq.sonnet_input_tokens > 0 || wReq.sonnet_output_tokens > 0,
         showOpus: wReq.opus_input_tokens > 0 || wReq.opus_output_tokens > 0,
       });
     }
@@ -186,7 +181,8 @@ const CookieVisualization: React.FC = () => {
         title: t("cookieStatus.quota.sevenDayOpus") as string,
         b: woReq,
         // weekly_opus bucket only counts Opus; still guard by > 0
-        showSonnet: woReq.sonnet_input_tokens > 0 || woReq.sonnet_output_tokens > 0,
+        showSonnet:
+          woReq.sonnet_input_tokens > 0 || woReq.sonnet_output_tokens > 0,
         showOpus: woReq.opus_input_tokens > 0 || woReq.opus_output_tokens > 0,
       });
     }
@@ -194,7 +190,8 @@ const CookieVisualization: React.FC = () => {
       groups.push({
         title: t("cookieStatus.quota.total") as string,
         b: ltReq,
-        showSonnet: ltReq.sonnet_input_tokens > 0 || ltReq.sonnet_output_tokens > 0,
+        showSonnet:
+          ltReq.sonnet_input_tokens > 0 || ltReq.sonnet_output_tokens > 0,
         showOpus: ltReq.opus_input_tokens > 0 || ltReq.opus_output_tokens > 0,
       });
     }
@@ -213,7 +210,8 @@ const CookieVisualization: React.FC = () => {
           <div key={idx} className="flex flex-col gap-1">
             <div className="flex gap-3 flex-wrap">
               <span>
-                {title} · {t("cookieStatus.usage.totalInput")}: {b.total_input_tokens}
+                {title} · {t("cookieStatus.usage.totalInput")}:{" "}
+                {b.total_input_tokens}
               </span>
               <span>
                 {t("cookieStatus.usage.totalOutput")}: {b.total_output_tokens}
@@ -221,14 +219,26 @@ const CookieVisualization: React.FC = () => {
             </div>
             {showSonnet && (
               <div className="flex gap-3 flex-wrap pl-1 text-gray-500">
-                <Row label={t("cookieStatus.usage.sonnetInput") as string} value={b.sonnet_input_tokens} />
-                <Row label={t("cookieStatus.usage.sonnetOutput") as string} value={b.sonnet_output_tokens} />
+                <Row
+                  label={t("cookieStatus.usage.sonnetInput") as string}
+                  value={b.sonnet_input_tokens}
+                />
+                <Row
+                  label={t("cookieStatus.usage.sonnetOutput") as string}
+                  value={b.sonnet_output_tokens}
+                />
               </div>
             )}
             {showOpus && (
               <div className="flex gap-3 flex-wrap pl-1 text-gray-500">
-                <Row label={t("cookieStatus.usage.opusInput") as string} value={b.opus_input_tokens} />
-                <Row label={t("cookieStatus.usage.opusOutput") as string} value={b.opus_output_tokens} />
+                <Row
+                  label={t("cookieStatus.usage.opusInput") as string}
+                  value={b.opus_input_tokens}
+                />
+                <Row
+                  label={t("cookieStatus.usage.opusOutput") as string}
+                  value={b.opus_output_tokens}
+                />
               </div>
             )}
           </div>
@@ -324,11 +334,11 @@ const CookieVisualization: React.FC = () => {
                     data.error ||
                     t("common.error", { message: response.status })
                 );
-        setError(translateError(errorMessage));
+        setError(errorMessage);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      setError(translateError(message));
+      setError(message);
     } finally {
       setDeletingCookie(null);
     }
@@ -342,7 +352,7 @@ const CookieVisualization: React.FC = () => {
     try {
       if (typeof reason === "object" && reason !== null) {
         const r = reason as Record<string, unknown>;
-        if ("NonPro" in r) return t("cookieStatus.status.reasons.freAccount");
+        if ("Free" in r) return t("cookieStatus.status.reasons.freAccount");
         if ("Disabled" in r) return t("cookieStatus.status.reasons.disabled");
         if ("Banned" in r) return t("cookieStatus.status.reasons.banned");
         if ("Null" in r) return t("cookieStatus.status.reasons.invalid");
@@ -577,7 +587,8 @@ const CookieVisualization: React.FC = () => {
                   <span className="text-gray-400">
                     {(() => {
                       const cooldown = getCooldownDisplay(status);
-                      if (!cooldown) return t("cookieStatus.status.unknownReset");
+                      if (!cooldown)
+                        return t("cookieStatus.status.unknownReset");
                       return `${cooldown.label}: ${cooldown.time}`;
                     })()}
                   </span>

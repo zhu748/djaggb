@@ -24,55 +24,12 @@
   },
   "tabs": {
     "claude": "Claude",
-    "gemini": "Gemini",
     "config": "Config",
     "auth": "Auth"
   },
   "claudeTab": {
     "submit": "Submit Cookie",
     "status": "Cookie Status"
-  },
-  "geminiTabs": {
-    "aistudio": "AI Studio",
-    "vertex": "Vertex AI"
-  },
-  "geminiAiStudio": {
-    "submit": "Submit API Key",
-    "status": "Key Status"
-  },
-  "geminiVertex": {
-    "tabUpload": "Upload Service Account",
-    "tabStatus": "Service Accounts",
-    "notifications": {
-      "uploaded": "Service account saved",
-      "deleted": "Service account removed",
-      "fileLoaded": "File loaded"
-    },
-    "errors": {
-      "load": "Failed to load service accounts.",
-      "upload": "Failed to upload service account.",
-      "delete": "Failed to delete service account.",
-      "readFile": "Failed to read the selected file.",
-      "empty": "Please paste the service account JSON.",
-      "missingEmail": "The service account is missing client_email.",
-      "parse": "Invalid JSON payload."
-    },
-    "status": {
-      "loading": "Loading service accounts...",
-      "empty": "No service accounts configured.",
-      "project": "Project: {{project}}",
-      "unknown": "Unknown",
-      "keyId": "Key ID: {{id}}"
-    },
-    "form": {
-      "instructions": "Paste the Google Cloud service account JSON payload.",
-      "placeholder": "{ \"client_email\": \"service-account@project.iam.gserviceaccount.com\" }",
-      "jsonLabel": "Service Account JSON",
-      "chooseFile": "Choose JSON file",
-      "noFile": "No file selected",
-      "submitting": "Uploading...",
-      "button": "Upload"
-    }
   },
   "cookieSubmit": {
     "value": "Cookie Value",
@@ -91,8 +48,7 @@
       "empty": "Please enter at least one cookie",
       "format": "Invalid cookie format",
       "auth": "Authentication failed. Please set a valid auth token.",
-      "server": "Server error.",
-      "storage": "Database storage is unavailable. Please try again after fixing the connection."
+      "server": "Server error."
     }
   },
   "cookieStatus": {
@@ -189,18 +145,18 @@
         "rproxyPlaceholder": "https://example.com"
       },
       "api": {
-      "title": "API Settings",
-      "maxRetries": "Max Retries",
-      "preserveChats": "Preserve Chats",
-      "webSearch": "Web Search",
-      "webCountTokens": "Enable web count_tokens"
+        "title": "API Settings",
+        "maxRetries": "Max Retries",
+        "preserveChats": "Preserve Chats",
+        "webSearch": "Web Search",
+        "webCountTokens": "Enable web count_tokens"
       },
       "cookie": {
         "title": "Cookie Settings",
         "skipFirstWarning": "Skip First Warning",
         "skipSecondWarning": "Skip Second Warning",
         "skipRestricted": "Skip Restricted",
-        "skipNonPro": "Skip Non-Pro",
+        "skipFree": "Skip Non-Pro",
         "skipRateLimit": "Skip Rate Limit",
         "skipNormalPro": "Skip Normal Pro"
       },
@@ -211,40 +167,6 @@
         "customA": "Custom Assistant (optional)",
         "customPrompt": "Custom Prompt"
       }
-    },
-    "storage": {
-      "modeLabel": "Persistence Mode",
-      "modes": {
-        "file": "File (default)",
-        "sqlite": "SQLite",
-        "postgres": "PostgreSQL",
-        "mysql": "MySQL"
-      },
-      "healthLabel": "Health",
-      "health": {
-        "ok": "OK",
-        "down": "DOWN"
-      },
-      "driver": "Driver: {{driver}}",
-      "latency": "Latency (ms): {{latency}}",
-      "sqlitePath": "SQLite path: {{path}}",
-      "databaseUrl": "Database URL: {{url}}",
-      "lastWrite": "Last write: {{time}}",
-      "totalWrites": "Total writes: {{count}}",
-      "avgWriteMs": "Average write (ms): {{ms}}",
-      "failureRatio": "Failure ratio: {{ratio}}%",
-      "retryCount": "Retry count: {{count}}",
-      "writeErrors": "Write errors: {{count}}",
-      "error": "Error: {{error}}",
-      "lastError": "Last error: {{error}}",
-      "details": {
-        "show": "Show details",
-        "hide": "Hide details"
-      },
-      "import": "Import from file",
-      "export": "Export to file",
-      "importSuccess": "Configuration imported into the database",
-      "exportSuccess": "Configuration exported"
     }
   },
   "common": {
@@ -252,47 +174,6 @@
     "error": "Error: {{message}}",
     "reveal": "Reveal",
     "hide": "Hide",
-    "copy": "Copy to clipboard",
-    "dbUnavailable": "Database storage is unavailable. Please check the database configuration and retry."
-  },
-  "keyTab": {
-    "submit": "Submit Key",
-    "status": "Key Status"
-  },
-  "keySubmit": {
-    "value": "Key Value",
-    "placeholder": "Paste your key here...",
-    "placeholderMulti": "Paste your keys here (one per line)...",
-    "description": "Enter the complete key string.",
-    "descriptionMulti": "Enter multiple keys, one per line. Each key will be processed individually.",
-    "submitting": "Submitting...",
-    "submitButton": "Submit Keys",
-    "success": "Key submitted successfully!",
-    "allSuccess": "All {{count}} keys submitted successfully!",
-    "allFailed": "All {{count}} keys failed to submit.",
-    "partialSuccess": "{{successCount}} out of {{total}} keys submitted successfully ({{errorCount}} failed).",
-    "resultDetails": "Submission details",
-    "error": {
-      "empty": "Please enter at least one key",
-      "auth": "Authentication failed. Please set a valid auth token.",
-      "server": "Server error.",
-      "storage": "Database storage is unavailable. Please try again after fixing the connection."
-    }
-  },
-  "keyStatus": {
-    "title": "Key Status",
-    "total": "Total: {{count}} keys",
-    "refresh": "Refresh",
-    "refreshing": "Refreshing...",
-    "sections": {
-      "valid": "Valid Keys"
-    },
-    "status": {
-      "active": "Active"
-    },
-    "noKeys": "No keys found",
-    "emptyHelp": "You haven't added any keys yet. Use the 'Submit Key' tab to add keys.",
-    "deleteConfirm": "Are you sure you want to delete this key?",
-    "delete": "Delete"
+    "copy": "Copy to clipboard"
   }
 }

@@ -232,13 +232,87 @@ impl ClaudeCodeState {
             client: wreq_client.clone(),
         };
 
-        let new_token = client
+        let org_uuid = token.organization.uuid.clone();
+        let refresh_result = client
             .exchange_refresh_token(&oauth2::RefreshToken::new(token.refresh_token.to_owned()))
             .request_async(&my_client)
-            .await?;
+            .await;
 
-        *token = TokenInfo::new(new_token, token.organization.uuid.clone());
-        Ok(())
+        match refresh_result {
+            Ok(new_token) => {
+                *token = TokenInfo::new(new_token, org_uuid);
+                Ok(())
+            }
+            Err(e) => {
+                // Check if this is an invalid_grant error
+                if !Self::is_invalid_grant_error(&e) {
+                    return Err(e.into());
+                }
+                tracing::warn!(
+                    "Refresh token invalid (invalid_grant), attempting to re-authorize with new OAuth2 flow"
+                );
+                // Clear the old token to force re-authorization
+                if let Some(cookie) = self.cookie.as_mut() {
+                    cookie.token = None;
+                }
+
+                // First, verify the cookie is still valid and check account type
+                // This will return Reason::Null if cookie is invalid,
+                // or Reason::Free if account was downgraded
+                let org_uuid = self
+                    .get_organization()
+                    .await
+                    .inspect_err(|e| tracing::error!("Cannot re-authorize: {}", e))?;
+
+                // Cookie is valid and account has Pro+ permissions, proceed with re-authorization
+                let code_res = self.exchange_code(&org_uuid).await.inspect_err(|e| {
+                    tracing::error!("Failed to exchange code during re-authorization: {}", e)
+                })?;
+                match self.exchange_token(code_res).await {
+                    Ok(_) => {
+                        tracing::info!("Successfully re-authorized with new OAuth2 flow");
+                        Ok(())
+                    }
+                    Err(token_err) => {
+                        tracing::error!(
+                            "Failed to exchange token during re-authorization: {}",
+                            token_err
+                        );
+                        Err(token_err)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Checks if the error is an invalid_grant error from OAuth2
+    fn is_invalid_grant_error(
+        error: &oauth2::RequestTokenError<
+            oauth2::HttpClientError<wreq::Error>,
+            oauth2::StandardErrorResponse<oauth2::basic::BasicErrorResponseType>,
+        >,
+    ) -> bool {
+        use oauth2::RequestTokenError;
+        match error {
+            RequestTokenError::ServerResponse(response) => {
+                // Check if error type is invalid_grant
+                response
+                    .error()
+                    .to_string()
+                    .to_lowercase()
+                    .contains("invalid_grant")
+                    || response
+                        .error_description()
+                        .map(|desc| {
+                            let desc_lower = desc.to_lowercase();
+                            desc_lower.contains("refresh token not found")
+                                || desc_lower.contains("refresh token")
+                                    && desc_lower.contains("invalid")
+                        })
+                        .unwrap_or(false)
+            }
+            _ => false,
+        }
     }
 
     fn get_wreq_client(&self) -> wreq::Client {

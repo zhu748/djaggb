@@ -51,17 +51,6 @@ export async function postCookie(cookie: string) {
     throw new Error("Authentication failed. Please set a valid auth token.");
   } else if (response.status === 500) {
     throw new Error("Server error.");
-  } else if (response.status === 503) {
-    let message = "Database storage is unavailable";
-    try {
-      const data = await response.json();
-      if (typeof data?.error === "string") {
-        message = data.error;
-      }
-    } catch (error) {
-      console.warn("Failed to parse error response for cookie submission", error);
-    }
-    throw new Error(message);
   }
 
   if (!response.ok) {
@@ -162,18 +151,13 @@ import type { ConfigData } from "../types/config.types";
 
 export async function saveConfig(configData: ConfigData) {
   const token = localStorage.getItem("authToken") || "";
-  // The config page no longer manages Vertex credentials.
-  // Exclude `vertex` from the payload to avoid accidental type mismatches
-  // with the backend's ServiceAccountKey structure and to preserve
-  // credentials managed in the Gemini section.
-  const { vertex: _omitVertex, ...payload } = (configData as unknown) as Record<string, unknown>;
   const response = await fetch("/api/config", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(configData),
   });
 
   if (!response.ok) {
@@ -253,46 +237,4 @@ export async function postMultipleCookies(cookies: string[]) {
   }
 
   return results;
-}
-
-// Storage: import/export between file and DB
-export async function storageImport() {
-  const token = localStorage.getItem("authToken") || "";
-  const response = await fetch("/api/storage/import", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  if (!response.ok) {
-    throw new Error(`Import failed: ${response.status}`);
-  }
-  return await response.json();
-}
-
-export async function storageExport() {
-  const token = localStorage.getItem("authToken") || "";
-  const response = await fetch("/api/storage/export", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  if (!response.ok) {
-    throw new Error(`Export failed: ${response.status}`);
-  }
-  return await response.json();
-}
-
-export async function storageStatus() {
-  const token = localStorage.getItem("authToken") || "";
-  const response = await fetch("/api/storage/status", {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  if (!response.ok) {
-    throw new Error(`Status failed: ${response.status}`);
-  }
-  return await response.json();
 }

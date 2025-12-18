@@ -148,7 +148,7 @@ const ConfigForm: React.FC<ConfigFormProps> = ({ config, onChange }) => {
           name="skip_non_pro"
           checked={config.skip_non_pro}
           onChange={onChange}
-          label={t("config.sections.cookie.skipNonPro")}
+          label={t("config.sections.cookie.skipFree")}
         />
         <ConfigCheckbox
           name="skip_restricted"

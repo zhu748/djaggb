@@ -9,6 +9,7 @@ use axum::{
     Json,
     extract::{FromRequest, Request},
 };
+use http::header::USER_AGENT;
 use serde_json::{Value, json};
 
 use crate::{
@@ -202,9 +203,18 @@ where
     type Rejection = ClewdrError;
 
     async fn from_request(req: Request, _: &S) -> Result<Self, Self::Rejection> {
+        let ua = req
+            .headers()
+            .get(USER_AGENT)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or_default()
+            .to_lowercase();
+        let is_from_cc = ua.contains("claude-code") || ua.contains("claude-cli");
         let NormalizeRequest(mut body, format) = NormalizeRequest::from_request(req, &()).await?;
         // Handle thinking mode by modifying the model name
-        if (body.model.contains("opus-4-1") || body.model.contains("sonnet-4-5")||body.model.contains("opus-4-5"))
+        if (body.model.contains("opus-4-1")
+            || body.model.contains("sonnet-4-5")
+            || body.model.contains("opus-4-5"))
             && body.temperature.is_some()
         {
             body.top_p = None; // temperature and top_p cannot be used together in Opus-4-1
@@ -222,43 +232,43 @@ where
         // Determine streaming status and API format
         let stream = body.stream.unwrap_or_default();
 
-        // Add a prelude text block to the system messages
-        const PRELUDE_TEXT: &str = "You are Claude Code, Anthropic's official CLI for Claude.";
-        let prelude_blk = || -> ContentBlock {
-            ContentBlock::Text {
+        // If the request is not from Claude Code, add a prelude to the system messages
+        if !is_from_cc {
+            // Add a prelude text block to the system messages
+            const PRELUDE_TEXT: &str = "You are Claude Code, Anthropic's official CLI for Claude.";
+            let prelude_blk = ContentBlock::Text {
                 text: CLEWDR_CONFIG
                     .load()
                     .custom_system
                     .clone()
                     .unwrap_or_else(|| PRELUDE_TEXT.to_string()),
-            }
-        };
-        match body.system {
-            Some(Value::String(ref text)) => {
-                if text != PRELUDE_TEXT {
+            };
+            match body.system {
+                Some(Value::String(ref text)) => {
                     let text_content = ContentBlock::Text {
                         text: text.to_owned(),
                     };
-                    body.system = Some(json!([prelude_blk(), text_content]));
+                    body.system = Some(json!([prelude_blk, text_content]));
                 }
-            }
-            Some(Value::Array(ref mut a)) => {
-                if !a.first().is_some_and(|blk| blk == PRELUDE_TEXT) {
-                    a.insert(0, json!(prelude_blk()));
-                    body.system = Some(json!(a));
+                Some(Value::Array(ref mut a)) => {
+                    a.insert(0, json!(prelude_blk));
                 }
-            }
-            _ => {
-                body.system = Some(json!([prelude_blk()]));
+                _ => {
+                    body.system = Some(json!([prelude_blk]));
+                }
             }
         }
 
         let cache_systems = body
             .system
             .as_ref()
-            .expect("System messages should be present")
+            .ok_or(ClewdrError::BadRequest {
+                msg: "Empty system prompt",
+            })?
             .as_array()
-            .expect("System messages should be an array")
+            .ok_or(ClewdrError::BadRequest {
+                msg: "System prompt is not an array",
+            })?
             .iter()
             .filter(|s| s["cache_control"].as_object().is_some())
             .collect::<Vec<_>>();

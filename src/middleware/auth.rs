@@ -2,7 +2,6 @@ use axum::extract::FromRequestParts;
 use axum_auth::AuthBearer;
 use tracing::warn;
 
-use super::gemini::GeminiArgs;
 use crate::{config::CLEWDR_CONFIG, error::ClewdrError};
 
 /// Extractor for the X-API-Key header used in Claude API compatibility
@@ -26,25 +25,6 @@ where
             .and_then(|v| v.to_str().ok())
             .ok_or(ClewdrError::InvalidAuth)?;
         Ok(Self(key.to_string()))
-    }
-}
-
-pub struct RequireQueryKeyAuth;
-impl<S> FromRequestParts<S> for RequireQueryKeyAuth
-where
-    S: Sync,
-{
-    type Rejection = ClewdrError;
-    async fn from_request_parts(
-        parts: &mut axum::http::request::Parts,
-        _: &S,
-    ) -> Result<Self, Self::Rejection> {
-        let query = GeminiArgs::from_request_parts(parts, &()).await?;
-        if !CLEWDR_CONFIG.load().user_auth(&query.key) {
-            warn!("Invalid query key: {}", query.key);
-            return Err(ClewdrError::InvalidAuth);
-        }
-        Ok(Self)
     }
 }
 

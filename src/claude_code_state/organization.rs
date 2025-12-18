@@ -54,7 +54,7 @@ impl ClaudeCodeState {
                 || c.contains("raven")
                 || c.contains("max")
         }) {
-            return Err(Reason::NonPro.into());
+            return Err(Reason::Free.into());
         }
         let email = bootstrap["account"]["email_address"]
             .as_str()

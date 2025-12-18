@@ -24,55 +24,12 @@
   },
   "tabs": {
     "claude": "Claude",
-    "gemini": "Gemini",
     "config": "配置",
     "auth": "认证"
   },
   "claudeTab": {
     "submit": "提交Cookie",
     "status": "Cookie状态"
-  },
-  "geminiTabs": {
-    "aistudio": "AI Studio",
-    "vertex": "Vertex AI"
-  },
-  "geminiAiStudio": {
-    "submit": "提交API密钥",
-    "status": "密钥状态"
-  },
-  "geminiVertex": {
-    "tabUpload": "上传服务账号",
-    "tabStatus": "服务账号列表",
-    "notifications": {
-      "uploaded": "服务账号已保存",
-      "deleted": "服务账号已删除",
-      "fileLoaded": "文件已加载"
-    },
-    "errors": {
-      "load": "无法加载服务账号。",
-      "upload": "上传服务账号失败。",
-      "delete": "删除服务账号失败。",
-      "readFile": "读取文件失败。",
-      "empty": "请粘贴服务账号 JSON。",
-      "missingEmail": "服务账号缺少 client_email 字段。",
-      "parse": "JSON 格式无效。"
-    },
-    "status": {
-      "loading": "正在加载服务账号...",
-      "empty": "尚未配置任何服务账号。",
-      "project": "项目：{{project}}",
-      "unknown": "未知",
-      "keyId": "密钥 ID：{{id}}"
-    },
-    "form": {
-      "instructions": "粘贴 Google Cloud 服务账号的 JSON 内容。",
-      "placeholder": "{ \"client_email\": \"service-account@project.iam.gserviceaccount.com\" }",
-      "jsonLabel": "服务账号 JSON",
-      "chooseFile": "选择 JSON 文件",
-      "noFile": "未选择文件",
-      "submitting": "上传中...",
-      "button": "上传"
-    }
   },
   "cookieSubmit": {
     "value": "Cookie值",
@@ -91,8 +48,7 @@
       "empty": "请输入至少一个cookie",
       "format": "无效的cookie格式",
       "auth": "认证失败。请设置有效的认证令牌。",
-      "server": "服务器错误。",
-      "storage": "数据库存储不可用，请修复连接后再试。"
+      "server": "服务器错误。"
     }
   },
   "cookieStatus": {
@@ -189,18 +145,18 @@
         "rproxyPlaceholder": "https://example.com"
       },
       "api": {
-      "title": "API设置",
-      "maxRetries": "最大重试次数",
-      "preserveChats": "保留聊天",
-      "webSearch": "网页搜索",
-      "webCountTokens": "允许 Web 渠道调用 count_tokens"
+        "title": "API设置",
+        "maxRetries": "最大重试次数",
+        "preserveChats": "保留聊天",
+        "webSearch": "网页搜索",
+        "webCountTokens": "允许 Web 渠道调用 count_tokens"
       },
       "cookie": {
         "title": "Cookie设置",
         "skipFirstWarning": "跳过一次警告（小黄）",
         "skipSecondWarning": "跳过二次警告（小黄）",
         "skipRestricted": "跳过受限（大黄）",
-        "skipNonPro": "跳过普号",
+        "skipFree": "跳过普号",
         "skipRateLimit": "跳过冷却",
         "skipNormalPro": "跳过正常Pro（大黄仙人特供）"
       },
@@ -211,40 +167,6 @@
         "customA": "自定义 Assistant（可选）",
         "customPrompt": "自定义提示词"
       }
-    },
-    "storage": {
-      "modeLabel": "持久化模式",
-      "modes": {
-        "file": "文件（默认）",
-        "sqlite": "SQLite",
-        "postgres": "PostgreSQL",
-        "mysql": "MySQL"
-      },
-      "healthLabel": "健康状态",
-      "health": {
-        "ok": "正常",
-        "down": "异常"
-      },
-      "driver": "驱动：{{driver}}",
-      "latency": "延迟（毫秒）：{{latency}}",
-      "sqlitePath": "SQLite 路径：{{path}}",
-      "databaseUrl": "数据库 URL：{{url}}",
-      "lastWrite": "最近写入时间：{{time}}",
-      "totalWrites": "写入总数：{{count}}",
-      "avgWriteMs": "平均写入耗时（毫秒）：{{ms}}",
-      "failureRatio": "失败比例：{{ratio}}%",
-      "retryCount": "重试次数：{{count}}",
-      "writeErrors": "写入错误：{{count}}",
-      "error": "错误：{{error}}",
-      "lastError": "最近错误：{{error}}",
-      "import": "从文件导入",
-      "export": "导出到文件",
-      "importSuccess": "已将配置导入数据库",
-      "exportSuccess": "配置数据已导出",
-      "details": {
-        "show": "展开详情",
-        "hide": "收起详情"
-      }
     }
   },
   "common": {
@@ -252,47 +174,6 @@
     "error": "错误：{{message}}",
     "reveal": "显示",
     "hide": "隐藏",
-    "copy": "复制到剪贴板",
-    "dbUnavailable": "数据库存储不可用，请检查数据库配置后重试。"
-  },
-  "keyTab": {
-    "submit": "提交密钥",
-    "status": "密钥状态"
-  },
-  "keySubmit": {
-    "value": "密钥值",
-    "placeholder": "在此粘贴您的密钥...",
-    "placeholderMulti": "在此粘贴您的密钥（每行一个）...",
-    "description": "输入完整的密钥字符串。",
-    "descriptionMulti": "输入多个密钥，每行一个。每个密钥将被单独处理。",
-    "submitting": "提交中...",
-    "submitButton": "提交密钥",
-    "success": "密钥提交成功！",
-    "allSuccess": "所有{{count}}个密钥提交成功！",
-    "allFailed": "所有{{count}}个密钥提交失败。",
-    "partialSuccess": "{{total}}个密钥中的{{successCount}}个提交成功（{{errorCount}}个失败）。",
-    "resultDetails": "提交详情",
-    "error": {
-      "empty": "请输入至少一个密钥",
-      "auth": "认证失败。请设置有效的认证令牌。",
-      "server": "服务器错误。",
-      "storage": "数据库存储不可用，请修复连接后再试。"
-    }
-  },
-  "keyStatus": {
-    "title": "密钥状态",
-    "total": "总计：{{count}}个密钥",
-    "refresh": "刷新",
-    "refreshing": "刷新中...",
-    "sections": {
-      "valid": "有效密钥"
-    },
-    "status": {
-      "active": "活跃"
-    },
-    "noKeys": "未找到密钥",
-    "emptyHelp": "您尚未添加任何密钥。使用\"提交密钥\"选项卡添加密钥。",
-    "deleteConfirm": "您确定要删除此密钥吗？",
-    "delete": "删除"
+    "copy": "复制到剪贴板"
   }
 }
